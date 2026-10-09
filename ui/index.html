@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Бэкап профилей браузеров</title>
+<style>
+:root{
+  --bg:#0a101d; --bg2:#0d1524;
+  --panel:#111b2e; --panel2:#0e1728; --panel3:#16223a;
+  --line:#1f2f4d; --line2:#283a5c;
+  --ink:#e9eefb; --ink2:#a6b6d4; --muted:#64779b;
+  --accent:#4f8ff7; --accent2:#6ea4ff; --accent-soft:#152441;
+  --good:#4ecb8d; --warn:#e0a44a; --bad:#e2685f;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  font-size:14px;line-height:1.5;overflow:hidden;
+}
+.app{display:flex;flex-direction:column;height:100vh}
+.head{padding:20px 26px 14px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--bg2),var(--bg))}
+.head h1{margin:0;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.head .sub{color:var(--ink2);font-size:12.5px;margin-top:3px}
+.head-row{display:flex;align-items:flex-start;gap:16px}
+.lang{margin-left:auto;display:flex;gap:3px;padding:3px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px}
+.lang button{background:transparent;border:0;color:var(--ink2);font:inherit;font-size:12px;
+  padding:5px 11px;border-radius:7px;cursor:pointer}
+.lang button.on{background:var(--accent-soft);color:var(--accent2)}
+
+.body{flex:1;overflow-y:auto;padding:18px 26px 22px}
+.body::-webkit-scrollbar{width:10px}
+.body::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px;border:3px solid var(--bg)}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  margin-bottom:14px;overflow:hidden}
+.card-h{padding:12px 16px;font-weight:600;font-size:13px;display:flex;align-items:center;
+  gap:9px;color:var(--ink);border-bottom:1px solid var(--line)}
+.card-h .ic{width:22px;height:22px;border-radius:7px;background:var(--accent-soft);
+  display:grid;place-items:center;font-size:12px;color:var(--accent2)}
+.card-h .sp{margin-left:auto;font-weight:400;color:var(--muted);font-size:12px}
+
+/* предупреждение */
+.note{display:flex;gap:11px;background:#16130a;border:1px solid #3a3018;color:#e6cf98;
+  border-radius:12px;padding:12px 15px;font-size:12.5px;margin-bottom:14px;line-height:1.55}
+.note .ni{flex-shrink:0}
+.note b{color:#f0dcae}
+
+/* браузеры */
+.browser{border-bottom:1px solid var(--line)}
+.browser:last-child{border-bottom:0}
+.bh{display:flex;align-items:center;gap:11px;padding:13px 16px;cursor:pointer;user-select:none}
+.bh:hover{background:var(--panel2)}
+.chip{width:28px;height:28px;border-radius:9px;background:var(--accent-soft);
+  display:grid;place-items:center;font-size:13px;color:var(--accent2);font-weight:600;flex-shrink:0}
+.bname{font-weight:600}
+.bver{color:var(--muted);font-size:11.5px}
+.bcount{color:var(--muted);font-size:12px;margin-left:auto;margin-right:6px}
+.chev{color:var(--muted);transition:transform .18s ease;flex-shrink:0;font-size:13px}
+.browser.open .chev{transform:rotate(90deg)}
+.profiles{display:none;padding:0 16px 12px 55px}
+.browser.open .profiles{display:block}
+.pf{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;cursor:pointer;
+  border:1px solid transparent;transition:background .12s,border-color .12s}
+.pf:hover{background:var(--panel3)}
+.pf.sel{background:var(--accent-soft);border-color:var(--accent)}
+.pf.sel .box{background:var(--accent);border-color:var(--accent)}
+.pf.sel .box::after{content:'✓';color:#fff;font-size:11px;font-weight:700;line-height:1}
+.box{width:17px;height:17px;border-radius:6px;border:1.5px solid var(--line2);flex-shrink:0;
+  display:grid;place-items:center;transition:background .12s,border-color .12s}
+.pf .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:10.5px;padding:2px 8px;border-radius:6px;background:var(--accent-soft);
+  color:var(--accent2);flex-shrink:0;white-space:nowrap}
+.tag.empty{background:#241d12;color:var(--warn)}
+.tag.def{background:#12291e;color:var(--good)}
+.sz{color:var(--muted);font-size:11.5px;flex-shrink:0;min-width:52px;text-align:right}
+.rm{background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:13px;
+  padding:2px 7px;border-radius:7px;flex-shrink:0;line-height:1}
+.rm:hover{background:#3a1c1c;color:var(--bad)}
+.pw{font-size:11px;color:var(--muted);padding:2px 10px 8px 35px}
+
+/* бэкапы */
+.bk{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;
+  border:1px solid transparent;transition:background .12s,border-color .12s}
+.bk:hover{background:var(--panel3)}
+.bk.sel{background:var(--accent-soft);border-color:var(--accent)}
+.bk.sel .box{background:var(--accent);border-color:var(--accent)}
+.bk.sel .box::after{content:'✓';color:#fff;font-size:11px;font-weight:700;line-height:1}
+.bk .nm{flex:1;min-width:0}
+.bk .meta{color:var(--muted);font-size:11.5px}
+.bk .ok{color:var(--good);font-size:11px}
+.bk .bad{color:var(--bad);font-size:11px}
+.empty-note{color:var(--muted);font-size:12.5px;padding:10px 16px 14px}
+
+/* папка */
+.dir{display:flex;align-items:center;gap:10px;padding:12px 16px}
+.dir .path{flex:1;font-size:12.5px;color:var(--ink2);word-break:break-all;
+  background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 12px}
+
+/* кнопки */
+.btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 18px;
+  font:inherit;font-weight:600;cursor:pointer;transition:background .15s}
+.btn:hover{background:var(--accent2)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2)}
+.btn.ghost:hover{background:var(--panel3)}
+.btn.sm{padding:7px 13px;font-size:12.5px;font-weight:500}
+
+.foot{border-top:1px solid var(--line);background:var(--bg2);padding:14px 26px}
+.foot-row{display:flex;gap:10px;align-items:center}
+.foot-row .sp{margin-left:auto}
+.prog{height:5px;background:var(--panel3);border-radius:3px;overflow:hidden;margin-bottom:9px;display:none}
+.prog.on{display:block}
+.prog .bar{height:100%;width:0;background:var(--accent);border-radius:3px;transition:width .2s}
+.status{font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:8px}
+.status.err{color:var(--bad)}
+.status.ok{color:var(--good)}
+
+/* журнал */
+.log{margin:0;padding:12px 16px;font-family:Consolas,'Cascadia Mono',monospace;
+  font-size:11.5px;color:var(--ink2);max-height:150px;overflow-y:auto;white-space:pre-wrap;
+  word-break:break-all;background:var(--panel2)}
+.log::-webkit-scrollbar{width:9px}
+.log::-webkit-scrollbar-thumb{background:var(--line2);border-radius:5px}
+
+/* модалка */
+.modal{position:fixed;inset:0;background:rgba(4,8,16,.72);display:none;
+  place-items:center;z-index:50;backdrop-filter:blur(3px)}
+.modal.on{display:grid}
+.dlg{background:var(--panel);border:1px solid var(--line2);border-radius:16px;
+  width:440px;max-width:90vw;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.dlg h3{margin:0 0 10px;font-size:15.5px}
+.dlg p{margin:0 0 18px;color:var(--ink2);font-size:13px;line-height:1.6;white-space:pre-wrap}
+.dlg .row{display:flex;gap:10px;justify-content:flex-end}
+.spin{width:13px;height:13px;border:2px solid var(--line2);border-top-color:var(--accent);
+  border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div class="head-row">
+      <div>
+        <h1 id="t-title">Бэкап профилей браузеров</h1>
+        <div class="sub" id="t-sub">Сохраняет и восстанавливает профили — локально, без следов в системе.</div>
+      </div>
+      <div class="lang">
+        <button id="lang-ru" onclick="setLang('ru')">Русский</button>
+        <button id="lang-en" onclick="setLang('en')">English</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="note" id="pw-note">
+      <span class="ni">🔐</span>
+      <div id="pw-note-text"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="ic">◧</span><span id="t-browsers">Браузеры и профили</span>
+        <span class="sp" id="browsers-sp"></span></div>
+      <div id="browsers"></div>
+      <div style="padding:10px 16px 14px;border-top:1px solid var(--line)">
+        <button class="btn ghost sm" onclick="addCustom()" id="t-addfolder">Добавить папку…</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="ic">↺</span><span id="t-restore">Восстановить из бэкапа</span></div>
+      <div id="backups"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="ic">🗀</span><span id="t-dir">Папка для бэкапа</span></div>
+      <div class="dir">
+        <div class="path" id="dir-path">—</div>
+        <button class="btn ghost sm" onclick="changeDir()" id="t-change">Изменить…</button>
+        <button class="btn ghost sm" onclick="openBackupFolder()" id="t-open">Открыть папку</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="ic">▤</span><span id="t-log">Журнал</span>
+        <span class="sp"><button class="btn ghost sm" onclick="openLogFile()" id="t-openlog">Открыть файл лога</button></span></div>
+      <pre class="log" id="log"></pre>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="prog" id="prog"><div class="bar" id="bar"></div></div>
+    <div class="foot-row">
+      <button class="btn" id="btn-backup" onclick="doBackup()">Создать бэкап</button>
+      <button class="btn ghost" id="btn-restore" onclick="doRestore()">Восстановить</button>
+      <span class="sp"></span>
+      <span class="status" id="status">Готово.</span>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal"><div class="dlg">
+  <h3 id="m-title"></h3>
+  <p id="m-body"></p>
+  <div class="row" id="m-row"></div>
+</div></div>
+
+<script>
+let LANG = 'ru';
+let STATE = { browsers: [], backups: [], dir: '', busy: false };
+let PENDING_OP = null; // {kind, resolve} — ожидание итога backup/restore
+
+const STR = {
+  ru: {
+    title:'Бэкап профилей браузеров',
+    sub:'Сохраняет и восстанавливает профили — локально, без следов в системе.',
+    browsers:'Браузеры и профили', restore:'Восстановить из бэкапа', dir:'Папка для бэкапа',
+    log:'Журнал', change:'Изменить…', open:'Открыть папку', openlog:'Открыть файл лога',
+    backup:'Создать бэкап', restoreBtn:'Восстановить', ready:'Готово.',
+    pw:'Для <b>Chromium-семейства</b> (Chrome, Edge, Brave, Vivaldi и др.) файлами переносятся закладки, история, расширения и настройки. Входы и пароли — только через вход в аккаунт (синхронизацию). Для <b>Firefox-семейства</b> (Zen, Firefox, LibreWolf и др.) пароли переносятся файлами.',
+    noprof:'Профилей не найдено.', nobrowsers:'Поддерживаемые браузеры не найдены.',
+    nobackups:'В выбранной папке пока нет бэкапов.',
+    active:'активный', empty:'пустой', def:'основной',
+    profilesWord:['профиль','профиля','профилей'],
+    verifying:'Проверяю целостность…', backingup:'Создаю бэкап…', restoring:'Восстанавливаю…',
+    doneB:'Бэкап создан.', doneR:'Восстановление завершено.',
+    verifiedOk:'Целостность подтверждена', verifiedBad:'ПРОВЕРКА НЕ ПРОЙДЕНА',
+    ok:'Да', cancel:'Отмена', close:'Закрыть',
+    cDrive:'Папка находится на диске C:. При переустановке Windows диск C: стирается, и бэкап будет потерян.\n\nРекомендуется хранить бэкап на другом диске (например, D:).\n\nВсё равно использовать эту папку?',
+    cDriveTitle:'Бэкап на диске C:',
+    confirmR:'Будут восстановлены:\n\n%s\n\nТекущие профили НЕ удаляются — сначала делается страховочная копия.\n\nПродолжить?',
+    confirmRTitle:'Подтвердите восстановление',
+    noSel:'Выберите хотя бы один профиль.', noSelTitle:'Ничего не выбрано',
+    noSelR:'Выберите хотя бы один бэкап.',
+    running:'Сейчас запущены: %s.\n\nБраузер должен быть закрыт — иначе часть файлов не скопируется, а профиль может повредиться.',
+    runningTitle:'Браузер запущен',
+    errTitle:'Ошибка', integrityFail:'Бэкап создан, но проверка целостности НЕ пройдена: %d. Проверьте журнал.',
+    remove:'Убрать папку', loadErr:'Ошибка загрузки',
+    chooseDirTitle:'Выберите папку для бэкапов',
+    addFolderTitle:'Выберите папку профиля другого браузера',
+    needRun:'Сначала запустите один раз и закройте: %s',
+    restoreBroken:'Пропущены битые бэкапы (не восстановлены):'
+  },
+  en: {
+    title:'Browser Profile Backup',
+    sub:'Saves and restores profiles — locally, with no traces left in the system.',
+    browsers:'Browsers and profiles', restore:'Restore from backup', dir:'Backup folder',
+    log:'Log', change:'Change…', open:'Open folder', openlog:'Open log file',
+    backup:'Create backup', restoreBtn:'Restore', ready:'Ready.',
+    pw:'For the <b>Chromium family</b> (Chrome, Edge, Brave, Vivaldi, …), files carry bookmarks, history, extensions and settings. Sign-ins and passwords transfer only via account sign-in (sync). For the <b>Firefox family</b> (Zen, Firefox, LibreWolf, …), passwords are transferred with the files.',
+    noprof:'No profiles found.', nobrowsers:'No supported browsers found.',
+    nobackups:'No backups in the selected folder yet.',
+    active:'active', empty:'empty', def:'default',
+    profilesWord:['profile','profiles','profiles'],
+    verifying:'Verifying integrity…', backingup:'Creating backup…', restoring:'Restoring…',
+    doneB:'Backup created.', doneR:'Restore finished.',
+    verifiedOk:'Integrity verified', verifiedBad:'CHECK FAILED',
+    ok:'Yes', cancel:'Cancel', close:'Close',
+    cDrive:'This folder is on drive C:. When you reinstall Windows, drive C: is erased and the backup will be lost.\n\nIt is strongly recommended to store the backup on another drive (for example D:).\n\nUse this folder anyway?',
+    cDriveTitle:'Backup on drive C:',
+    confirmR:'The following will be restored:\n\n%s\n\nYour current profiles will NOT be deleted — a safety copy is made first.\n\nContinue?',
+    confirmRTitle:'Confirm restore',
+    noSel:'Please select at least one profile.', noSelTitle:'Nothing selected',
+    noSelR:'Please select at least one backup.',
+    running:'Currently running: %s.\n\nThe browser must be closed — otherwise some files cannot be copied and the profile may be damaged.',
+    runningTitle:'Browser is running',
+    errTitle:'Error', integrityFail:'Backup created, but integrity check FAILED for %d. See the log.',
+    remove:'Remove folder', loadErr:'Load error',
+    chooseDirTitle:'Choose a folder for backups',
+    addFolderTitle:'Choose a profile folder of another browser',
+    needRun:'Launch once and close first: %s',
+    restoreBroken:'Skipped damaged backups (not restored):'
+  }
+};
+function t(k){ return STR[LANG][k]; }
+function plural(n){ return LANG==='ru' ? (n%10===1&&n%100!==11?0:(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?1:2)) : (n===1?0:1); }
+function fmtSize(b){
+  if(b<1024) return b+' B';
+  const u=['KB','MB','GB','TB']; let f=b,i=-1;
+  while(f>=1024&&i<u.length-1){f/=1024;i++;}
+  return (f>=100?f.toFixed(0):f.toFixed(1))+' '+u[i];
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function applyLang(){
+  document.getElementById('t-title').textContent=t('title');
+  document.getElementById('t-sub').textContent=t('sub');
+  document.getElementById('t-browsers').textContent=t('browsers');
+  document.getElementById('t-restore').textContent=t('restore');
+  document.getElementById('t-dir').textContent=t('dir');
+  document.getElementById('t-log').textContent=t('log');
+  document.getElementById('t-change').textContent=t('change');
+  document.getElementById('t-open').textContent=t('open');
+  document.getElementById('t-openlog').textContent=t('openlog');
+  document.getElementById('btn-backup').textContent=t('backup');
+  document.getElementById('btn-restore').textContent=t('restoreBtn');
+  document.getElementById('pw-note-text').innerHTML=t('pw');
+  document.getElementById('lang-ru').classList.toggle('on',LANG==='ru');
+  document.getElementById('lang-en').classList.toggle('on',LANG==='en');
+  render();
+}
+function setLang(l){ if(l===LANG) return; LANG=l; if(window.setLanguage) window.setLanguage(l); applyLang(); }
+
+function render(){
+  // браузеры
+  const bc=document.getElementById('browsers');
+  if(!STATE.browsers.length){ bc.innerHTML='<div class="empty-note">'+t('nobrowsers')+'</div>'; }
+  else{
+    let h='';
+    STATE.browsers.forEach((b,bi)=>{
+      const n=b.profiles.length;
+      const isCustom = b.family==='custom';
+      // предупреждение про пароли — для всего Chromium-семейства
+      let pw='';
+      if(b.password==='account'){
+        pw='<div class="pw">🔑 '+(LANG==='ru'?'пароли — только через вход в аккаунт'
+          :'passwords — via account sign-in only')+'</div>';
+      } else if(!isCustom){
+        pw='<div class="pw">✓ '+(LANG==='ru'?'пароли переносятся файлами'
+          :'passwords transfer with files')+'</div>';
+      }
+      h+='<div class="browser'+(bi===0?' open':'')+'" id="br'+bi+'">'
+        +'<div class="bh" onclick="toggleBrowser('+bi+')">'
+        +'<span class="chip">'+esc(b.name.charAt(0))+'</span>'
+        +'<span class="bname">'+esc(b.name)+'</span>'
+        +(b.version?'<span class="bver">'+esc(b.version)+'</span>':'')
+        +'<span class="bcount">'+n+' '+t('profilesWord')[plural(n)]+'</span>'
+        +'<span class="chev">›</span></div>'
+        +'<div class="profiles">';
+      if(!n) h+='<div class="empty-note" style="padding:4px 0 8px">'+t('noprof')+'</div>';
+      b.profiles.forEach((p,pi)=>{
+        let tag='';
+        if(p.isEmpty) tag='<span class="tag empty">'+t('empty')+'</span>';
+        else if(p.isActive) tag='<span class="tag def">'+t('active')+'</span>';
+        else if(p.isDefault) tag='<span class="tag">'+t('def')+'</span>';
+        const rm = isCustom
+          ? '<button class="rm" title="'+t('remove')+'" onclick="event.preventDefault();event.stopPropagation();removeCustom(\''+esc(p.path||'')+'\')">✕</button>'
+          : '';
+        // по умолчанию НИЧЕГО не выбрано — пользователь отмечает сам
+        h+='<div class="pf" data-b="'+bi+'" data-p="'+pi+'" onclick="toggleProf(this)">'
+          +'<span class="box"></span>'
+          +'<span class="nm">'+esc(p.name)+'</span>'+tag
+          +'<span class="sz">'+fmtSize(p.size)+'</span>'+rm+'</div>';
+      });
+      h+='</div>'+pw+'</div>';
+    });
+    bc.innerHTML=h;
+  }
+  // бэкапы
+  const kc=document.getElementById('backups');
+  if(!STATE.backups.length){ kc.innerHTML='<div class="empty-note">'+t('nobackups')+'</div>'; }
+  else{
+    let h='';
+    STATE.backups.forEach((m,i)=>{
+      const st = m.verified===true ? '<span class="ok">✓ '+t('verifiedOk')+'</span>'
+               : m.verified===false ? '<span class="bad">✗ '+t('verifiedBad')+'</span>' : '';
+      // по умолчанию НИЧЕГО не выбрано — пользователь отмечает сам
+      h+='<div class="bk" data-k="'+i+'" onclick="toggleBackup(this)">'
+        +'<span class="box"></span>'
+        +'<span class="nm">'+esc(m.browser)+' — '+esc(m.profile)+'</span>'
+        +'<span class="meta">'+esc(m.created)+'</span>'+st+'</div>';
+    });
+    kc.innerHTML=h;
+  }
+  document.getElementById('dir-path').textContent=STATE.dir||'—';
+}
+function toggleBrowser(i){ document.getElementById('br'+i).classList.toggle('open'); }
+
+function selectedProfiles(){
+  const out=[];
+  document.querySelectorAll('#browsers .pf.sel').forEach(el=>{
+    out.push({b:+el.dataset.b, p:+el.dataset.p});
+  });
+  return out;
+}
+function selectedBackups(){
+  const out=[];
+  document.querySelectorAll('#backups .bk.sel').forEach(el=>{
+    out.push(STATE.backups[+el.dataset.k].folder);
+  });
+  return out;
+}
+function toggleProf(el){ el.classList.toggle('sel'); }
+function toggleBackup(el){ el.classList.toggle('sel'); }
+
+// ---- модалка ----
+function modal(title, body, buttons){
+  document.getElementById('m-title').textContent=title;
+  document.getElementById('m-body').innerHTML=body;
+  const row=document.getElementById('m-row'); row.innerHTML='';
+  buttons.forEach(b=>{
+    const el=document.createElement('button');
+    el.className='btn'+(b.ghost?' ghost':''); el.textContent=b.text;
+    el.onclick=()=>{ closeModal(); if(b.act) b.act(); };
+    row.appendChild(el);
+  });
+  document.getElementById('modal').classList.add('on');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('on'); }
+function info(title,body){ modal(title,esc(body).replace(/\n/g,'<br>'),[{text:t('close')}]); }
+function confirmBox(title,body,onYes){
+  modal(title,esc(body).replace(/\n/g,'<br>'),
+    [{text:t('cancel'),ghost:true},{text:t('ok'),act:onYes}]);
+}
+// ---- действия ----
+function setBusy(on, text){
+  STATE.busy=on;
+  document.getElementById('btn-backup').disabled=on;
+  document.getElementById('btn-restore').disabled=on;
+  document.getElementById('prog').classList.toggle('on',on);
+  const st=document.getElementById('status');
+  st.className='status'+(on?'':'');
+  st.innerHTML = on ? '<span class="spin"></span>'+esc(text||'') : esc(text||t('ready'));
+}
+function progress(done,total,name){
+  const pct = total>0 ? Math.min(100,Math.round(done*100/total)) : 0;
+  document.getElementById('bar').style.width=pct+'%';
+  document.getElementById('status').innerHTML='<span class="spin"></span>'+esc(name)+' — '+pct+'%  ('+fmtSize(done)+' / '+fmtSize(total)+')';
+}
+function appendLog(line){
+  const el=document.getElementById('log');
+  el.textContent += line+'\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+async function load(){
+  try{
+    const r = await window.api.state();
+    STATE.browsers = r.browsers||[];
+    STATE.backups  = r.backups||[];
+    STATE.dir      = r.dir||'';
+    if(r.lang && r.lang!==LANG){ LANG=r.lang; }
+    applyLang();
+  }catch(e){
+    appendLog('LOAD ERROR: '+(e && e.message ? e.message : e));
+    document.getElementById('status').className='status err';
+    document.getElementById('status').textContent='Ошибка загрузки / Load error';
+  }
+}
+
+// applyDir — сохранить выбранную папку бэкапа (с предупреждением про диск C:).
+async function applyDir(dir){
+  const apply = async ()=>{
+    await window.api.setDir(dir);
+    STATE.dir = dir;
+    await load();
+  };
+  if(isDriveC(dir)){ confirmBox(t('cDriveTitle'), t('cDrive'), apply); return; }
+  await apply();
+}
+function isDriveC(p){ return /^[cC]:/.test(String(p||'')); }
+
+// runFolderDialog — показать диалог выбора папки и дождаться результата.
+// Диалог показывает Go в потоке окна, поэтому результата ждём опросом:
+//   {}                 — диалог ещё открыт
+//   {ok:true, path:..} — выбран путь
+//   {ok:false}         — пользователь закрыл диалог
+//   {error:..}         — ошибка
+async function runFolderDialog(title, startDir){
+  await window.api.pickFolder(title, startDir||'');
+  for(let i=0;i<1800;i++){            // ~3 минуты максимум
+    await new Promise(r=>setTimeout(r,100));
+    const r = await window.api.pollFolder();
+    if(!r) continue;
+    if(r.error){ throw new Error(r.error); }
+    if(r.ok){ return r; }
+    if(r.ok === false){ return {ok:false}; }
+  }
+  return {ok:false};
+}
+
+async function changeDir(){
+  try{
+    const r = await runFolderDialog(t('chooseDirTitle'), STATE.dir);
+    if(!r || !r.ok || !r.path) return;
+    await applyDir(r.path);
+  }catch(e){ uiError(e); }
+}
+// ВАЖНО: имена этих функций НЕ должны совпадать с именами RPC-функций,
+// которые регистрирует Go (openFolder/openLog и т.п.) — иначе вызов уходит
+// сам в себя и падает с «Maximum call stack size exceeded».
+async function openBackupFolder(){ try{ await window.api.openFolder(); }catch(e){ uiError(e); } }
+async function openLogFile(){ try{ await window.api.openLog(); }catch(e){ uiError(e); } }
+
+// ---- «Другой браузер»: папки вручную ----
+async function addCustom(){
+  try{
+    const r = await runFolderDialog(t('addFolderTitle'), '');
+    if(!r || !r.ok || !r.path) return;
+    await window.api.addCustomDir(r.path);
+    await load();
+  }catch(e){ uiError(e); }
+}
+async function removeCustom(path){
+  try{
+    await window.api.removeCustomDir(path);
+    await load();
+  }catch(e){ uiError(e); }
+}
+
+// uiError — показывает понятную ошибку вместо тихого сбоя.
+function uiError(e){
+  const msg = e && e.message ? e.message : String(e);
+  appendLog('UI ERROR: '+msg);
+  const st=document.getElementById('status');
+  st.className='status err';
+  st.textContent=t('errTitle');
+  info(t('errTitle'), msg);
+}
+
+// runOp — запустить долгую операцию (backup/restore). Go выполняет её в
+// отдельной горутине и по завершении вызывает window.__opDone с итогом;
+// сам RPC-вызов возвращается сразу. Так окно не замерзает на время копирования.
+function runOp(kind, start){
+  return new Promise((resolve)=>{
+    PENDING_OP = {kind, resolve};
+    Promise.resolve(start()).then(r=>{
+      // Обычно RPC возвращается сразу с {} (итог придёт в __opDone).
+      // Но при занятости Go отвечает {"error":"busy"} сразу — не ждём напрасно.
+      if(r && (r.error || r.cancelled) && PENDING_OP){ PENDING_OP = null; resolve(r); }
+    }).catch(e=>{
+      PENDING_OP = null;
+      setBusy(false);
+      uiError(e);
+    });
+  });
+}
+
+async function doBackup(){
+  if(STATE.busy) return;
+  const sel=selectedProfiles();
+  if(!sel.length){ modal(t('noSelTitle'), esc(t('noSel')), [{text:t('close')}]); return; }
+  const check = await window.api.checkRunning(sel.map(s=>STATE.browsers[s.b].key));
+  const running = check.running || [];
+  if(running.length){
+    modal(t('runningTitle'), esc(t('running').replace('%s',running.join(', '))).replace(/\n/g,'<br>'),[{text:t('close')}]);
+    return;
+  }
+  setBusy(true,t('backingup'));
+  const res = await runOp('backup', ()=>window.api.backup(sel));
+  setBusy(false);
+  if(res.cancelled){ document.getElementById('status').textContent=t('ready'); return; }
+  if(res.error){ document.getElementById('status').className='status err';
+    document.getElementById('status').textContent=t('errTitle'); info(t('errTitle'),res.error); return; }
+  await load();
+  document.getElementById('status').className='status ok';
+  let msg = t('doneB')+'\n'+res.count+' · '+fmtSize(res.bytes);
+  if(res.broken>0){ msg += '\n\n'+t('integrityFail').replace('%d',res.broken); }
+  else { msg += '\n✓ '+t('verifiedOk'); }
+  document.getElementById('status').textContent = res.broken>0 ? t('errTitle') : t('doneB');
+  info(t('doneB'), msg);
+}
+
+async function doRestore(){
+  if(STATE.busy) return;
+  const sel=selectedBackups();
+  if(!sel.length){ modal(t('noSelTitle'), esc(t('noSelR')), [{text:t('close')}]); return; }
+  const names=sel.map(f=>{const m=STATE.backups.find(x=>x.folder===f); return '• '+m.browser+' — '+m.profile;}).join('\n');
+  confirmBox(t('confirmRTitle'), t('confirmR').replace('%s',names), async ()=>{
+    const keys=sel.map(f=>STATE.backups.find(x=>x.folder===f).browser_key);
+    const check = await window.api.checkRunning(keys);
+    const running = check.running || [];
+    if(running.length){
+      modal(t('runningTitle'), esc(t('running').replace('%s',running.join(', '))).replace(/\n/g,'<br>'),[{text:t('close')}]);
+      return;
+    }
+    setBusy(true,t('restoring'));
+    const res = await runOp('restore', ()=>window.api.restore(sel));
+    setBusy(false);
+    if(res.error){ document.getElementById('status').className='status err';
+      document.getElementById('status').textContent=t('errTitle'); info(t('errTitle'),res.error); return; }
+    document.getElementById('status').className='status ok';
+    document.getElementById('status').textContent=t('doneR');
+    let msg=t('doneR')+'\n\n'+t('verifiedOk');
+    if(res.broken && res.broken.length){
+      msg += '\n\n⚠ '+t('restoreBroken')+'\n• '+res.broken.join('\n• ');
+    }
+    if(res.safety) msg+='\n\n'+ (LANG==='ru'?'Страховочная копия: ':'Safety copy: ') + res.safety;
+    if(res.notRun && res.notRun.length) msg+='\n\n'+t('needRun').replace('%s',res.notRun.join(', '));
+    info(t('doneR'), msg);
+  });
+}
+
+window.onerror=function(m){ appendLog('UI error: '+m); };
+
+// мост из Go
+window.__progress = function(p){ progress(p.done, p.total, p.name); };
+window.__log = function(line){ appendLog(line); };
+window.__opDone = function(res){
+  const p = PENDING_OP; PENDING_OP = null;
+  if(p && p.resolve) p.resolve(res || {});
+};
+
+// Go регистрирует функции как window.<name>() и возвращает JSON-строку —
+// оборачиваем их в удобный api.* с разбором JSON.
+function wrap(name){
+  return async function(...args){
+    if(typeof window[name] !== 'function') throw new Error('bridge missing: '+name);
+    const raw = await window[name](...args);
+    return raw ? JSON.parse(raw) : {};
+  };
+}
+
+window.api = {
+  state:        wrap('state'),
+  pickFolder:   wrap('pickFolder'),
+  pollFolder:   wrap('pollFolder'),
+  setDir:       wrap('setDir'),
+  openFolder:   wrap('openFolder'),
+  openLog:      wrap('openLog'),
+  checkRunning: wrap('checkRunning'),
+  backup:       wrap('backup'),
+  restore:      wrap('restore'),
+  setLanguage:  wrap('setLanguage'),
+  addCustomDir:    wrap('addCustomDir'),
+  removeCustomDir: wrap('removeCustomDir'),
+};
+
+load();
+</script>
+</body>
+</html>

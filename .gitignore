@@ -1,0 +1,21 @@
+# Собранные бинарники
+*.exe
+*.dll
+
+# ВАЖНО: rsrc_windows_amd64.syso НЕ игнорируем — он вшивает иконку и манифест
+# в .exe и нужен для сборки (генерируется из app.manifest + build/icon.ico).
+
+# Портативные настройки (личные: путь к папке бэкапа и т.п.)
+BrowserBackup-settings.json
+
+# Логи
+*.log
+
+# Системный мусор
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Временное
+/tmp/
+*.tmp

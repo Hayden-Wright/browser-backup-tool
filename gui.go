@@ -48,6 +48,11 @@ func runApp() {
 	}
 	defer removeWebViewData(dataPath)
 
+	// Окно должно появиться уже без системной шапки и с готовым содержимым:
+	// хук правит стиль в момент создания, а показываем окно мы сами (см. uiReady).
+	unhook := installCreateHook()
+	defer unhook()
+
 	app.w = webview2.NewWithOptions(webview2.WebViewOptions{
 		AutoFocus: true,
 		DataPath:  dataPath,
@@ -75,13 +80,19 @@ func runApp() {
 	app.w.Bind("setLanguage", app.jsSetLanguage)
 	app.w.Bind("addCustomDir", app.jsAddCustomDir)
 	app.w.Bind("removeCustomDir", app.jsRemoveCustomDir)
+	app.w.Bind("windowAction", app.jsWindowAction)
+	app.w.Bind("setDragArea", app.jsSetDragArea)
+	app.w.Bind("startDrag", app.jsStartDrag)
+	app.w.Bind("ready", app.jsReady)
 
 	// Журнал идёт и в файл, и в окно.
 	log.SetSink(app.logSink)
 	log.SetFile(app.settings.BackupDir)
 	log.Log("%s", Tf("log_ready", app.settings.BackupDir))
 
-	applyDarkTitleBar(app.hwnd()) // тёмный заголовок под тёмно-синюю тему
+	// Стиль уже без заголовка (хук), но подкласс для перетаскивания ставим
+	// здесь: он нужен на всё время жизни окна.
+	makeFrameless(app.hwnd())
 
 	app.w.SetHtml(uiHTML)
 	app.w.Run()
@@ -259,6 +270,39 @@ func (a *App) jsSetLanguage(lang string) (string, error) {
 	a.settings.Language = lang
 	saveSettings(a.settings)
 	currentLang = parseLang(lang)
+	return "{}", nil
+}
+
+// ---------- своя шапка окна ----------
+
+// jsWindowAction — кнопки своей шапки: свернуть, развернуть, закрыть.
+// Одна функция с аргументом, а не три отдельные: webview2 требует точного
+// совпадения числа аргументов, и лишние привязки ничего не дают.
+func (a *App) jsWindowAction(action string) (string, error) {
+	windowAction(a.hwnd(), action)
+	return "{}", nil
+}
+
+// jsReady вызывается из JS, когда интерфейс отрисован. Окно к этому моменту
+// уже видно (скрывать его нельзя — WebView2 не рендерит скрытое окно), но
+// это полезная точка: сюда можно повесить отложенные действия, которым нужен
+// готовый DOM.
+func (a *App) jsReady() (string, error) {
+	return "{}", nil
+}
+
+// jsStartDrag начинает перетаскивание окна — вызывается из JS по нажатию
+// на шапку. Почему из JS, а не через WM_NCHITTEST, см. startDrag.
+func (a *App) jsStartDrag() (string, error) {
+	startDrag()
+	return "{}", nil
+}
+
+// jsSetDragArea сообщает Go, где находится шапка, чтобы окно таскалось
+// за неё. Координаты в CSS-пикселях; при другом масштабе экрана WebView2
+// пересчитывает их сам, поэтому передаём как есть.
+func (a *App) jsSetDragArea(height, excludeRight int) (string, error) {
+	setDragArea(height, excludeRight)
 	return "{}", nil
 }
 

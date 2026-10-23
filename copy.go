@@ -35,6 +35,27 @@ var skipFileNames = map[string]bool{
 	".parentlock": true, "lock": true, "parent.lock": true,
 }
 
+// isSiteFileStorage сообщает, что папка — это файловое хранилище сайта
+// (File System API) внутри storage/<тип>/<сайт>/fs.
+//
+// Почему отдельная проверка, а не просто имя в cacheDirNames: имя "fs"
+// слишком общее, и в чужом профиле под ним может лежать что угодно. Здесь
+// же важно только одно — мы внутри дерева storage, где fs заводит сам сайт.
+//
+// Что это за данные. Сайты складывают туда произвольные файлы: кеш игр,
+// скачанные ресурсы, офлайн-копии. На реальном профиле Zen это 568 МБ из
+// 910 МБ всего бэкапа, причём 524 МБ — один игровой сайт. К настройкам,
+// паролям и кукам отношения не имеет, поэтому в бэкап не идёт.
+// IndexedDB (idb) и localStorage (ls) остаются: там как раз состояние
+// веб-приложений и входы.
+func isSiteFileStorage(dirPath string) bool {
+	if !strings.EqualFold(filepath.Base(dirPath), "fs") {
+		return false
+	}
+	p := normalizePath(dirPath)
+	return strings.Contains(p, "/storage/default/") || strings.Contains(p, "/storage/permanent/")
+}
+
 type fileEntry struct {
 	path string
 	size int64
@@ -52,7 +73,7 @@ func collectFiles(root string, skipCache bool) ([]fileEntry, int64) {
 		name := strings.ToLower(info.Name())
 
 		if info.IsDir() {
-			if skipCache && cacheDirNames[name] {
+			if skipCache && (cacheDirNames[name] || isSiteFileStorage(p)) {
 				return filepath.SkipDir
 			}
 			return nil

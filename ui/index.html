@@ -19,8 +19,29 @@ body{
   margin:0;background:var(--bg);color:var(--ink);
   font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
   font-size:14px;line-height:1.5;overflow:hidden;
+  /* Колонка на весь экран: шапка окна сверху, приложение занимает остаток.
+     Высота .app считается как остаток, а не 100vh — иначе 44 px шапки
+     прибавлялись к 100vh, и низ окна с кнопками уезжал за экран
+     (замерено: содержимое 824 px при окне 780). */
+  display:flex;flex-direction:column;
 }
-.app{display:flex;flex-direction:column;height:100vh}
+.app{display:flex;flex-direction:column;flex:1;min-height:0}
+/* Своя шапка окна. Системный заголовок убран (makeFrameless), поэтому
+   кнопки и перетаскивание живут здесь. Высота фиксирована: её же значение
+   уходит в Go через setDragArea, чтобы окно таскалось именно за неё. */
+.titlebar{height:44px;display:flex;align-items:center;gap:10px;
+  padding:0 8px 0 16px;background:var(--bg2);border-bottom:1px solid var(--line);
+  user-select:none;flex-shrink:0}
+.titlebar .tb-name{font-size:12.5px;font-weight:600;color:var(--ink2);
+  letter-spacing:.01em;pointer-events:none}
+.titlebar .tb-spacer{flex:1;height:100%}
+.wbtns{display:flex;height:100%;align-items:stretch}
+.wbtn{width:44px;border:0;background:transparent;color:var(--ink2);
+  font-family:'Segoe MDL2 Assets','Segoe Fluent Icons','Segoe UI Symbol',sans-serif;
+  font-size:10px;line-height:1;cursor:pointer;
+  display:grid;place-items:center;transition:background .12s,color .12s}
+.wbtn:hover{background:var(--panel3);color:var(--ink)}
+.wbtn.close:hover{background:#c42b1c;color:#fff}
 .head{padding:20px 26px 14px;border-bottom:1px solid var(--line);
   background:linear-gradient(180deg,var(--bg2),var(--bg))}
 .head h1{margin:0;font-size:19px;font-weight:600;letter-spacing:-.01em}
@@ -139,9 +160,38 @@ body{
 .spin{width:13px;height:13px;border:2px solid var(--line2);border-top-color:var(--accent);
   border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
 @keyframes sp{to{transform:rotate(360deg)}}
+
+/* Экран загрузки. Показывается с первого кадра: окно WebView2 создаётся
+   ~0.6 с, и всё это время пользователь иначе видел бы пустое окно, а потом
+   ещё ~0.4 с — уже отрисованный, но без данных (сбор состояния обходит
+   профили). Вместо «программа думает» — понятное «Loading profiles…». */
+.boot{position:fixed;inset:0;z-index:100;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  transition:opacity .28s ease}
+.boot.hide{opacity:0;pointer-events:none}
+.boot .logo{width:54px;height:54px;border-radius:16px;background:var(--accent-soft);
+  display:grid;place-items:center;font-size:24px;color:var(--accent2)}
+.boot .bt{font-size:14.5px;font-weight:600;color:var(--ink)}
+.boot .bs{font-size:12.5px;color:var(--muted);margin-top:-10px}
+.boot .spin{width:20px;height:20px;border-width:2.5px}
 </style>
 </head>
 <body>
+<div class="boot" id="boot">
+  <div class="logo">🗂</div>
+  <div class="bt" id="boot-title">Browser Profile Backup</div>
+  <div class="bs" id="boot-sub">Loading profiles…</div>
+  <div class="spin"></div>
+</div>
+<div class="titlebar">
+  <span class="tb-name" id="tb-name">Browser Profile Backup</span>
+  <div class="tb-spacer"></div>
+  <div class="wbtns">
+    <button class="wbtn" onclick="winAct('minimize')" title="Minimize">&#xE921;</button>
+    <button class="wbtn" onclick="winAct('maximize')" id="btn-max" title="Maximize">&#xE922;</button>
+    <button class="wbtn close" onclick="winAct('close')" title="Close">&#xE8BB;</button>
+  </div>
+</div>
 <div class="app">
   <div class="head">
     <div class="head-row">
@@ -243,6 +293,7 @@ const STR = {
     chooseDirTitle:'Выберите папку для бэкапов',
     addFolderTitle:'Выберите папку профиля другого браузера',
     needRun:'Сначала запустите один раз и закройте: %s',
+    bootSub:'Загружаю профили…',
     restoreBroken:'Пропущены битые бэкапы (не восстановлены):'
   },
   en: {
@@ -273,6 +324,7 @@ const STR = {
     chooseDirTitle:'Choose a folder for backups',
     addFolderTitle:'Choose a profile folder of another browser',
     needRun:'Launch once and close first: %s',
+    bootSub:'Loading profiles…',
     restoreBroken:'Skipped damaged backups (not restored):'
   }
 };
@@ -287,6 +339,8 @@ function fmtSize(b){
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function applyLang(){
+  const bootSub = document.getElementById('boot-sub');
+  if(bootSub) bootSub.textContent = t('bootSub');
   document.getElementById('t-title').textContent=t('title');
   document.getElementById('t-sub').textContent=t('sub');
   document.getElementById('t-browsers').textContent=t('browsers');
@@ -303,6 +357,62 @@ function applyLang(){
   document.getElementById('lang-en').classList.toggle('on',LANG==='en');
   render();
 }
+
+// ---------- своя шапка окна ----------
+// winAct — кнопки свернуть/развернуть/закрыть. Реальную работу делает Go:
+// из HTML нельзя послать WM_SYSCOMMAND, а эмулировать клик по системным
+// кнопкам через JS — значит потерять поведение Windows.
+function winAct(a){ if(window.api && window.api.windowAction) window.api.windowAction(a); }
+
+// syncDragArea сообщает Go высоту шапки, чтобы окно таскалось за неё.
+// Ширина полосы кнопок справа исключается: иначе перетаскивание съедало бы
+// клики по «свернуть/закрыть».
+function syncDragArea(){
+  const tb = document.querySelector('.titlebar');
+  const btns = document.querySelector('.wbtns');
+  if(!tb || !window.api || !window.api.setDragArea) return;
+  const h = Math.round(tb.getBoundingClientRect().height);
+  const w = btns ? Math.round(btns.getBoundingClientRect().width) : 0;
+  window.api.setDragArea(h, w);
+}
+
+// Кнопка «развернуть» меняет значок в зависимости от состояния окна.
+function syncMaxIcon(){
+  const b = document.getElementById('btn-max');
+  if(!b) return;
+  // В развёрнутом окне показываем «восстановить» (E923), иначе «развернуть» (E922).
+  const maxed = window.outerHeight >= screen.availHeight - 8;
+  b.innerHTML = maxed ? '&#xE923;' : '&#xE922;';
+  b.title = maxed ? 'Restore' : 'Maximize';
+}
+
+window.addEventListener('resize', ()=>{ syncDragArea(); syncMaxIcon(); });
+
+// Перетаскивание за шапку.
+//
+// Почему из JS, а не через WM_NCHITTEST. Дочерние окна WebView2 лежат поверх
+// всей клиентской области и живут на своих потоках, поэтому главное окно не
+// получает WM_NCHITTEST и не может ответить HTCAPTION. Здесь мы сообщаем Go
+// о нажатии, а он просит Windows начать штатное перетаскивание.
+//
+// Двойной щелчок по шапке разворачивает окно — как у обычных окон Windows.
+(function(){
+  const tb = document.querySelector('.titlebar');
+  if(!tb) return;
+  tb.addEventListener('mousedown', function(e){
+    if(e.button !== 0) return;
+    // Кнопки окна и любые элементы управления не перетаскивают окно.
+    if(e.target.closest('.wbtn') || e.target.closest('button')) return;
+    if(!window.api || !window.api.startDrag) return;
+    e.preventDefault();
+    window.api.startDrag();
+  });
+  tb.addEventListener('dblclick', function(e){
+    if(e.target.closest('.wbtn') || e.target.closest('button')) return;
+    winAct('maximize');
+  });
+})();
+
 function setLang(l){ if(l===LANG) return; LANG=l; if(window.setLanguage) window.setLanguage(l); applyLang(); }
 
 function render(){
@@ -427,6 +537,15 @@ function appendLog(line){
   el.scrollTop = el.scrollHeight;
 }
 
+// hideBoot убирает экран загрузки. Вызывается после первой отрисовки данных,
+// а не сразу: иначе пользователь увидит мельком пустой список.
+function hideBoot(){
+  const b = document.getElementById('boot');
+  if(!b || b.classList.contains('hide')) return;
+  b.classList.add('hide');
+  setTimeout(()=>{ if(b && b.parentNode) b.parentNode.removeChild(b); }, 400);
+}
+
 async function load(){
   try{
     const r = await window.api.state();
@@ -435,10 +554,12 @@ async function load(){
     STATE.dir      = r.dir||'';
     if(r.lang && r.lang!==LANG){ LANG=r.lang; }
     applyLang();
+    hideBoot();
   }catch(e){
     appendLog('LOAD ERROR: '+(e && e.message ? e.message : e));
     document.getElementById('status').className='status err';
     document.getElementById('status').textContent='Ошибка загрузки / Load error';
+    hideBoot();
   }
 }
 
@@ -616,9 +737,30 @@ window.api = {
   backup:       wrap('backup'),
   restore:      wrap('restore'),
   setLanguage:  wrap('setLanguage'),
+  windowAction: wrap('windowAction'),
+  setDragArea:  wrap('setDragArea'),
+  startDrag:    wrap('startDrag'),
+  ready:        wrap('ready'),
   addCustomDir:    wrap('addCustomDir'),
   removeCustomDir: wrap('removeCustomDir'),
 };
+
+syncDragArea();
+syncMaxIcon();
+
+// Окно скрыто до этого вызова (см. installCreateHook в Go): иначе на экране
+// мелькала бы стандартная светлая шапка и белое поле, пока создаётся WebView2.
+// Показываем сразу с экраном загрузки — данные придут следом, и оверлей
+// исчезнет в hideBoot().
+// ready() — async (мост обёрнут в промис), поэтому .catch обязателен:
+// без него окно осталось бы скрытым навсегда, а ошибка — невидимой.
+window.api.ready().catch(e=>{
+  appendLog('READY ERROR: '+(e && e.message ? e.message : e));
+  // Окно всё равно показываем: лучше интерфейс с ошибкой в журнале, чем
+  // невидимое приложение, которое пользователь не может закрыть.
+  const b=document.getElementById('boot');
+  if(b) b.classList.add('hide');
+});
 
 load();
 </script>

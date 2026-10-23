@@ -15,6 +15,3 @@ var errNoShellOpen = errStub("openViaShell: not supported")
 type errStub string
 
 func (e errStub) Error() string { return string(e) }
-
-// applyDarkTitleBar — заглушка для не-Windows сборок.
-func applyDarkTitleBar(hwnd uintptr) {}

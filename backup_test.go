@@ -19,6 +19,10 @@ func TestDoBackupProducesVerifiedManifest(t *testing.T) {
 	writeFile(t, filepath.Join(src, "Cache", "nope"), []byte("skip"))
 
 	backupDir := t.TempDir()
+	// doBackup открывает журнал в backupDir и держит его открытым, а t.TempDir
+	// удаляет каталог после теста. На Windows открытый файл удалить нельзя,
+	// поэтому закрываем журнал явно — иначе уборка падает.
+	t.Cleanup(func() { log.SetFile("") })
 	prof := Profile{
 		ID: "test|p1", Name: "TestProfile", BrowserKey: "testkey",
 		BrowserName: "TestBrowser", Kind: FamilyFirefox, RelPath: "p1",

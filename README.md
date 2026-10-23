@@ -89,6 +89,10 @@ The app warns about this right in the window, next to each such browser.
 - The profile is transferred into the folder created by the **new** browser, not into a
   folder with the old random id — that is what makes it work correctly.
 - **The cache is not copied** — it is not needed to carry data over and takes a lot of space.
+- **Site file storage is not copied either** (`storage/<site>/fs`). Sites keep arbitrary
+  blobs there — offline copies, game assets, downloaded resources — and it adds up fast:
+  on the author's Zen profile it was 695 MB of 1043 MB. IndexedDB and localStorage *are*
+  copied: that is where web-app state and sign-ins live.
 - Every backup is a separate folder with a date and time in its name
   (`zen_Default (release)_2026-10-09_18-41-12`). A new backup **never** overwrites an old one.
 - Inside a backup — `manifest.json` and `README.txt` (in Russian: `ПРОЧТИ_МЕНЯ.txt`): browser

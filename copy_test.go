@@ -115,3 +115,54 @@ func TestCopyTreeSingleFileDigest(t *testing.T) {
 		t.Fatalf("single-file digest mismatch:\n got %+v\nwant %+v", got, want)
 	}
 }
+
+// Файловое хранилище сайта (storage/default/<site>/fs) — мусор: сайты
+// складывают туда произвольные файлы, до 500+ МБ на один сайт. В бэкап не идёт.
+// При этом localStorage и IndexedDB обязаны остаться: там состояние
+// веб-приложений и входы.
+func TestSiteFileStorageSkippedButSiteDataKept(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	site := filepath.Join(src, "storage", "default", "https+++example.com^userContextId=1")
+	writeFile(t, filepath.Join(site, "fs", "AB", "bigfile"), []byte("site file blob"))
+	writeFile(t, filepath.Join(site, "ls", "data.sqlite"), []byte("localstorage"))
+	writeFile(t, filepath.Join(site, "idb", "123.sqlite"), []byte("indexeddb"))
+
+	dstRoot := filepath.Join(dst, "tree")
+	if _, _, _, err := copyTree(src, dstRoot, true, nil, nil); err != nil {
+		t.Fatalf("copyTree: %v", err)
+	}
+
+	if pathExists(filepath.Join(dstRoot, "storage", "default", "https+++example.com^userContextId=1", "fs", "AB", "bigfile")) {
+		t.Error("site file storage (fs) was copied, want skipped")
+	}
+	if !pathExists(filepath.Join(dstRoot, "storage", "default", "https+++example.com^userContextId=1", "ls", "data.sqlite")) {
+		t.Error("localStorage (ls) was skipped, want copied")
+	}
+	if !pathExists(filepath.Join(dstRoot, "storage", "default", "https+++example.com^userContextId=1", "idb", "123.sqlite")) {
+		t.Error("IndexedDB (idb) was skipped, want copied")
+	}
+}
+
+// Папка с именем "fs" вне дерева storage — не файловое хранилище сайта,
+// её трогать нельзя: имя слишком общее.
+func TestFsOutsideStorageNotSkipped(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "fs", "important.dat"), []byte("keep me"))
+	writeFile(t, filepath.Join(src, "extensions", "fs", "addon.dat"), []byte("keep me too"))
+
+	dstRoot := filepath.Join(dst, "tree")
+	if _, _, _, err := copyTree(src, dstRoot, true, nil, nil); err != nil {
+		t.Fatalf("copyTree: %v", err)
+	}
+
+	if !pathExists(filepath.Join(dstRoot, "fs", "important.dat")) {
+		t.Error(`top-level "fs" was skipped, want copied`)
+	}
+	if !pathExists(filepath.Join(dstRoot, "extensions", "fs", "addon.dat")) {
+		t.Error(`"fs" inside extensions was skipped, want copied`)
+	}
+}

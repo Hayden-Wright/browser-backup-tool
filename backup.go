@@ -260,19 +260,18 @@ func writeManifest(dir string, man manifest) {
 	os.WriteFile(filepath.Join(dir, "manifest.json"), data, 0644)
 
 	txt := strings.Join([]string{
-		"Браузер:      " + man.BrowserName + " " + man.BrowserVersion,
-		"Профиль:      " + man.ProfileName,
-		"Создан:       " + man.Created,
-		"Windows:      " + man.Windows,
-		"Компьютер:    " + man.Computer,
-		"Пользователь: " + man.User,
-		"Файлов:       " + strconv.Itoa(man.FileCount),
-		"Размер:       " + humanSize(man.TotalBytes),
+		Tf("readme_browser", strings.TrimSpace(man.BrowserName+" "+man.BrowserVersion)),
+		Tf("readme_profile", man.ProfileName),
+		Tf("readme_created", man.Created),
+		Tf("readme_windows", man.Windows),
+		Tf("readme_computer", man.Computer),
+		Tf("readme_user", man.User),
+		Tf("readme_files", strconv.Itoa(man.FileCount)),
+		Tf("readme_size", humanSize(man.TotalBytes)),
 		"",
-		"Чтобы восстановить: запустите программу, выберите этот бэкап",
-		"и нажмите «Восстановить». Браузер должен быть закрыт.",
+		T("readme_howto"),
 	}, "\r\n")
-	os.WriteFile(filepath.Join(dir, "ПРОЧТИ_МЕНЯ.txt"), []byte(txt), 0644)
+	os.WriteFile(filepath.Join(dir, readmeFileName(currentLang)), []byte(txt), 0644)
 }
 
 // listBackups находит готовые бэкапы (папки с manifest.json) в каталоге.

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Бэкап профилей браузеров</title>
+<title>Browser Profile Backup</title>
 <style>
 :root{
   --bg:#0a101d; --bg2:#0d1524;
@@ -146,12 +146,12 @@ body{
   <div class="head">
     <div class="head-row">
       <div>
-        <h1 id="t-title">Бэкап профилей браузеров</h1>
-        <div class="sub" id="t-sub">Сохраняет и восстанавливает профили — локально, без следов в системе.</div>
+        <h1 id="t-title">Browser Profile Backup</h1>
+        <div class="sub" id="t-sub">Saves and restores profiles — locally, with no traces left in the system.</div>
       </div>
       <div class="lang">
-        <button id="lang-ru" onclick="setLang('ru')">Русский</button>
         <button id="lang-en" onclick="setLang('en')">English</button>
+        <button id="lang-ru" onclick="setLang('ru')">Русский</button>
       </div>
     </div>
   </div>
@@ -163,31 +163,31 @@ body{
     </div>
 
     <div class="card">
-      <div class="card-h"><span class="ic">◧</span><span id="t-browsers">Браузеры и профили</span>
+      <div class="card-h"><span class="ic">◧</span><span id="t-browsers">Browsers and profiles</span>
         <span class="sp" id="browsers-sp"></span></div>
       <div id="browsers"></div>
       <div style="padding:10px 16px 14px;border-top:1px solid var(--line)">
-        <button class="btn ghost sm" onclick="addCustom()" id="t-addfolder">Добавить папку…</button>
+        <button class="btn ghost sm" onclick="addCustom()" id="t-addfolder">Add folder…</button>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-h"><span class="ic">↺</span><span id="t-restore">Восстановить из бэкапа</span></div>
+      <div class="card-h"><span class="ic">↺</span><span id="t-restore">Restore from backup</span></div>
       <div id="backups"></div>
     </div>
 
     <div class="card">
-      <div class="card-h"><span class="ic">🗀</span><span id="t-dir">Папка для бэкапа</span></div>
+      <div class="card-h"><span class="ic">🗀</span><span id="t-dir">Backup folder</span></div>
       <div class="dir">
         <div class="path" id="dir-path">—</div>
-        <button class="btn ghost sm" onclick="changeDir()" id="t-change">Изменить…</button>
-        <button class="btn ghost sm" onclick="openBackupFolder()" id="t-open">Открыть папку</button>
+        <button class="btn ghost sm" onclick="changeDir()" id="t-change">Change…</button>
+        <button class="btn ghost sm" onclick="openBackupFolder()" id="t-open">Open folder</button>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-h"><span class="ic">▤</span><span id="t-log">Журнал</span>
-        <span class="sp"><button class="btn ghost sm" onclick="openLogFile()" id="t-openlog">Открыть файл лога</button></span></div>
+      <div class="card-h"><span class="ic">▤</span><span id="t-log">Log</span>
+        <span class="sp"><button class="btn ghost sm" onclick="openLogFile()" id="t-openlog">Open log file</button></span></div>
       <pre class="log" id="log"></pre>
     </div>
   </div>
@@ -195,10 +195,10 @@ body{
   <div class="foot">
     <div class="prog" id="prog"><div class="bar" id="bar"></div></div>
     <div class="foot-row">
-      <button class="btn" id="btn-backup" onclick="doBackup()">Создать бэкап</button>
-      <button class="btn ghost" id="btn-restore" onclick="doRestore()">Восстановить</button>
+      <button class="btn" id="btn-backup" onclick="doBackup()">Create backup</button>
+      <button class="btn ghost" id="btn-restore" onclick="doRestore()">Restore</button>
       <span class="sp"></span>
-      <span class="status" id="status">Готово.</span>
+      <span class="status" id="status">Ready.</span>
     </div>
   </div>
 </div>
@@ -210,7 +210,7 @@ body{
 </div></div>
 
 <script>
-let LANG = 'ru';
+let LANG = 'en';
 let STATE = { browsers: [], backups: [], dir: '', busy: false };
 let PENDING_OP = null; // {kind, resolve} — ожидание итога backup/restore
 

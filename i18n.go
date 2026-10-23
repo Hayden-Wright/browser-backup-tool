@@ -10,7 +10,13 @@ const (
 	RU
 )
 
-var currentLang = RU
+// defaultLang — язык по умолчанию (код для файла настроек).
+// Английский основной: программа публичная, аудитория GitHub международная.
+// Русский остаётся полным вторым языком и включается кнопкой в окне.
+const defaultLang = "en"
+
+// currentLang — текущий язык интерфейса.
+var currentLang = EN
 
 // s — таблица строк: ключ -> [английский, русский].
 var s = map[string][2]string{
@@ -105,6 +111,19 @@ var s = map[string][2]string{
 	"log_error":        {"Error: %s", "Ошибка: %s"},
 	"log_done":         {"Finished.", "Завершено."},
 	"log_ready":        {"Ready. Backup folder: %s", "Готово к работе. Папка бэкапа: %s"},
+
+	// Файл-инструкция внутри папки бэкапа (ПРОЧТИ_МЕНЯ.txt).
+	// Пишется на языке, выбранном при создании бэкапа.
+	"readme_browser":  {"Browser:      %s", "Браузер:      %s"},
+	"readme_profile":  {"Profile:      %s", "Профиль:      %s"},
+	"readme_created":  {"Created:      %s", "Создан:       %s"},
+	"readme_windows":  {"Windows:      %s", "Windows:      %s"},
+	"readme_computer": {"Computer:     %s", "Компьютер:    %s"},
+	"readme_user":     {"User:         %s", "Пользователь: %s"},
+	"readme_files":    {"Files:        %s", "Файлов:       %s"},
+	"readme_size":     {"Size:         %s", "Размер:       %s"},
+	"readme_howto": {"To restore: run the program, pick this backup and click Restore.\nThe browser must be closed.",
+		"Чтобы восстановить: запустите программу, выберите этот бэкап\nи нажмите «Восстановить». Браузер должен быть закрыт."},
 }
 
 // T возвращает строку по ключу на текущем языке.
@@ -128,11 +147,16 @@ func langName(l Lang) string {
 	return "English"
 }
 
+// parseLang разбирает код языка из настроек. Неизвестное или пустое значение
+// даёт английский — он основной. Русский включается только явным "ru".
 func parseLang(v string) Lang {
-	if strings.EqualFold(strings.TrimSpace(v), "en") || strings.EqualFold(strings.TrimSpace(v), "english") {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "ru", "russian", "рус":
+		return RU
+	case "en", "english", "англ":
 		return EN
 	}
-	return RU
+	return EN
 }
 
 func langCode(l Lang) string {
@@ -140,4 +164,23 @@ func langCode(l Lang) string {
 		return "en"
 	}
 	return "ru"
+}
+
+// readmeFileName — имя файла-инструкции внутри папки бэкапа. Английский
+// основной, поэтому и имя английское; русское остаётся для бэкапов,
+// созданных на русском.
+//
+// Оба варианта надо пропускать при восстановлении (см. sourceItems): файл
+// лежит в корне бэкапа и иначе был бы скопирован в профиль как «Root»-файл.
+func readmeFileName(l Lang) string {
+	if l == RU {
+		return "ПРОЧТИ_МЕНЯ.txt"
+	}
+	return "README.txt"
+}
+
+// isReadmeFile сообщает, является ли имя файлом-инструкцией бэкапа (на любом
+// языке) — такие файлы не восстанавливаются.
+func isReadmeFile(name string) bool {
+	return name == readmeFileName(EN) || name == readmeFileName(RU)
 }

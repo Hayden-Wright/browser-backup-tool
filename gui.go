@@ -302,7 +302,7 @@ func (a *App) jsCheckRunning(keys []string) (string, error) {
 			continue
 		}
 		seen[k] = true
-		if def := browserByKey(k); def != nil && isRunning(def.procNames()...) {
+		if def := browserByKey(k); def != nil && def.isRunning() {
 			running = append(running, def.spec.Name)
 		}
 	}

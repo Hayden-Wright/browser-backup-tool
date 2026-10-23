@@ -28,11 +28,18 @@ const (
 //	Packages — glob под %LOCALAPPDATA%\Packages (для упакованных Store-приложений, напр. Arc)
 //
 // В одном поле можно указать несколько кандидатов через "|" — берётся первый существующий.
+//
+//	ProcPath — подстрока полного пути к .exe процесса. Нужна браузерам, чей
+//	           исполняемый файл называется так же, как у другого браузера
+//	           (Helium использует chrome.exe), — иначе проверка по имени
+//	           путает их между собой. Если задан, решает путь, а Proc
+//	           используется только как запасной вариант.
 type BrowserSpec struct {
 	Key      string   `json:"key"`
 	Name     string   `json:"name"`
 	Family   Family   `json:"family"`
 	Proc     []string `json:"proc"` // имена процессов без .exe (чтобы проверить, запущен ли браузер)
+	ProcPath string   `json:"proc_path,omitempty"`
 	Roaming  string   `json:"roaming,omitempty"`
 	Local    string   `json:"local,omitempty"`
 	Packages string   `json:"packages,omitempty"`
@@ -108,6 +115,13 @@ var builtinBrowsers = []BrowserSpec{
 		Local: "Chromium/User Data|ungoogled-chromium/User Data"},
 	{Key: "iron", Name: "SRWare Iron", Family: FamilyChromium, Proc: []string{"iron"},
 		Local: "Iron/User Data|SRWare Iron/User Data"},
+	// Helium — форк Chromium от imput. Профиль лежит в
+	// %LOCALAPPDATA%\imput\Helium\User Data, а сам .exe называется chrome.exe,
+	// поэтому запущенность определяется по пути (ProcPath), а не по имени:
+	// иначе при открытом Chrome программа считала бы запущенным и Helium.
+	{Key: "helium", Name: "Helium", Family: FamilyChromium, Proc: []string{"chrome"},
+		ProcPath: "imput/helium/application/chrome.exe",
+		Local:    "imput/Helium/User Data"},
 	// Arc — упакованное Store-приложение: данные лежат в Packages\<pkg>\LocalCache\Local\...
 	{Key: "arc", Name: "Arc", Family: FamilyChromium, Proc: []string{"arc"},
 		Packages: "TheBrowserCompany.Arc_*/LocalCache/Local/Arc/User Data"},

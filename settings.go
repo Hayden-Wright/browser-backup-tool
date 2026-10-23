@@ -12,7 +12,7 @@ import (
 // ни реестр — только выбранные пользователем бэкапы.
 type Settings struct {
 	BackupDir string `json:"backup_dir"`
-	Language  string `json:"language"` // "ru" | "en"
+	Language  string `json:"language"` // "en" (по умолчанию) | "ru"
 	// CustomProfileDirs — папки профилей, добавленные вручную
 	// (режим «Другой браузер»). Каждая запись — произвольная папка на диске.
 	CustomProfileDirs []string `json:"custom_profile_dirs,omitempty"`
@@ -24,7 +24,7 @@ func settingsPath() string {
 }
 
 func loadSettings() Settings {
-	st := Settings{Language: "ru"}
+	st := Settings{Language: defaultLang}
 	if data, err := os.ReadFile(settingsPath()); err == nil {
 		json.Unmarshal(data, &st)
 	}
@@ -34,7 +34,7 @@ func loadSettings() Settings {
 		st.BackupDir = defaultBackupDir()
 	}
 	if st.Language == "" {
-		st.Language = "ru"
+		st.Language = defaultLang
 	}
 	return st
 }

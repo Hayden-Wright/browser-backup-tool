@@ -57,6 +57,13 @@ func dirSize(root string) int64 {
 	return total
 }
 
+// normalizePath приводит путь к виду, удобному для сравнения по подстроке:
+// нижний регистр и прямые слэши. Нужен, потому что Helium и Chrome делят имя
+// исполняемого файла (chrome.exe) и различаются только путём.
+func normalizePath(p string) string {
+	return strings.ReplaceAll(strings.ToLower(p), `\`, "/")
+}
+
 // isRunning сообщает, запущен ли процесс с одним из указанных имён (без .exe).
 func isRunning(names ...string) bool {
 	procs := runningSet()

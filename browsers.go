@@ -149,6 +149,50 @@ func browserByKey(key string) *resolved {
 // procNames — имена процессов браузера.
 func (r *resolved) procNames() []string { return r.spec.Proc }
 
+// isRunning сообщает, запущен ли этот браузер.
+//
+// Если у браузера задан ProcPath, решает полный путь к .exe: Helium и Chrome
+// называются одинаково (chrome.exe), и проверка только по имени давала бы
+// ложное срабатывание в обе стороны. Если пути процессов получить не удалось,
+// остаётся проверка по имени — см. runningByProcPath.
+func (r *resolved) isRunning() bool {
+	if r.spec.ProcPath == "" {
+		return isRunning(r.spec.Proc...)
+	}
+	if running, decided := runningByProcPath(r.spec.ProcPath, runningExePaths()); decided {
+		return running
+	}
+	// Пути процессов недоступны — откатываемся на имя. Для Helium это даёт
+	// ложное «запущен» при открытом Chrome, но это безопасная сторона ошибки:
+	// пользователь закроет браузер и повторит. Обратная ошибка (пропустить
+	// открытый браузер) даёт битый бэкап, который обнаружится только при
+	// восстановлении, — то есть когда данные уже потеряны.
+	return isRunning(r.spec.Proc...)
+}
+
+// runningByProcPath решает, запущен ли браузер с указанным ProcPath, по списку
+// путей запущенных процессов.
+//
+// decided == false означает, что список пуст и решение принять нельзя —
+// вызывающий код должен откатиться на проверку по имени. Пустой список — это
+// не «ничего не запущено», а «пути получить не удалось» (снимок процессов не
+// создался, нет прав).
+//
+// Вынесено отдельной функцией, чтобы проверялось тестами на любой ОС:
+// runningExePaths на Linux — заглушка, возвращающая nil.
+func runningByProcPath(procPath string, paths []string) (running, decided bool) {
+	if len(paths) == 0 {
+		return false, false
+	}
+	want := normalizePath(procPath)
+	for _, p := range paths {
+		if strings.Contains(p, want) {
+			return true, true
+		}
+	}
+	return false, true
+}
+
 // isInstalled — найден ли браузер на диске.
 func (r *resolved) isInstalled() bool {
 	if r.spec.Family == FamilyFirefox {

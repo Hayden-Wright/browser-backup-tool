@@ -234,7 +234,7 @@ func sourceItems(dir string) []SourceItem {
 		if e.IsDir() {
 			continue
 		}
-		if e.Name() == "manifest.json" || e.Name() == "ПРОЧТИ_МЕНЯ.txt" {
+		if e.Name() == "manifest.json" || isReadmeFile(e.Name()) {
 			continue
 		}
 		out = append(out, SourceItem{Label: e.Name(), Path: filepath.Join(dir, e.Name()), IsFile: true})

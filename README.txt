@@ -12,11 +12,11 @@
 Поддерживаются (определяются автоматически):
   • Firefox-семейство: Zen, Firefox, LibreWolf, Waterfox, Floorp
   • Chromium-семейство: Chrome, Edge, Brave, Vivaldi, Chromium, Thorium,
-    Ungoogled Chromium, SRWare Iron, Arc
+    Ungoogled Chromium, SRWare Iron, Helium, Arc
   • Любой другой браузер — режим «Другой браузер» (указать папку профиля вручную).
 
 Интерфейс современный (на движке WebView2, встроен в Windows 10/11),
-тёмно-синяя тема, русский и английский язык.
+тёмно-синяя тема, английский и русский язык (английский включён по умолчанию).
 Каждый браузер — отдельным блоком; нажмите на него, чтобы раскрыть список
 его профилей и отметить нужные галочками.
 
@@ -47,7 +47,7 @@ Windows 10 он уже установлен. Если окно не открыв
   будете залогинены везде, как раньше.
 
 * Chromium-семейство (Chrome, Edge, Brave, Vivaldi, Chromium, Thorium,
-  Ungoogled Chromium, SRWare Iron, Arc) — пароли и куки зашифрованы ключом
+  Ungoogled Chromium, SRWare Iron, Helium, Arc) — пароли и куки зашифрованы ключом
   вашей учётной записи Windows. После переустановки Windows этот ключ
   меняется, поэтому старые пароли и куки НЕ РАСШИФРУЮТСЯ, даже если файлы
   скопированы идеально.
@@ -113,7 +113,7 @@ Windows 10 он уже установлен. Если окно не открыв
 * Каждый бэкап — отдельная папка с датой и временем в имени
   (например zen_Default (release)_2026-10-09_18-41-12). Новый бэкап
   НИКОГДА не перезаписывает старый.
-* Внутри каждого бэкапа — файл manifest.json и ПРОЧТИ_МЕНЯ.txt с описанием:
+* Внутри каждого бэкапа — файл manifest.json и README.txt (на русском — ПРОЧТИ_МЕНЯ.txt) с описанием:
   браузер и его версия, профиль, дата, версия Windows, компьютер,
   пользователь, число файлов, размер, контрольные суммы.
 * Все действия пишутся в журнал (browser-backup.log в папке бэкапа) —
@@ -174,7 +174,7 @@ except the backups.
 Detected automatically:
   • Firefox family: Zen, Firefox, LibreWolf, Waterfox, Floorp
   • Chromium family: Chrome, Edge, Brave, Vivaldi, Chromium, Thorium,
-    Ungoogled Chromium, SRWare Iron, Arc
+    Ungoogled Chromium, SRWare Iron, Helium, Arc
   • Any other browser — via "Other browser" (pick a profile folder manually).
 
 The window uses WebView2 (built into Windows 10/11). On first launch
@@ -205,4 +205,4 @@ Config:  fully portable — settings live in BrowserBackup-settings.json next
          To extend the browser list, put an optional browsers.json next to
          the .exe. WebView2 temp data goes to the OS temp folder and is
          removed on exit.
-Language: Russian/English, switch in the window.
+Language: English/Russian — English by default, switch in the window.

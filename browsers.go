@@ -318,7 +318,11 @@ func parseProfilesIni(path string) []iniProfile {
 	}
 	var out []iniProfile
 	var cur *iniProfile
-	for _, raw := range strings.Split(string(data), "\n") {
+	// BOM в начале файла: TrimSpace его не снимает (U+FEFF не пробел), и тогда
+	// строка "[Profile0]" не распознаётся как секция — первый профиль терялся
+	// целиком. Некоторые редакторы и старые версии браузеров пишут BOM.
+	text := strings.TrimPrefix(string(data), "\uFEFF")
+	for _, raw := range strings.Split(text, "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" || strings.HasPrefix(line, ";") || strings.HasPrefix(line, "#") {
 			continue

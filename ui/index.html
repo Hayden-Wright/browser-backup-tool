@@ -126,7 +126,11 @@ body{
 .btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 18px;
   font:inherit;font-weight:600;cursor:pointer;transition:background .15s}
 .btn:hover{background:var(--accent2)}
-.btn:disabled{opacity:.45;cursor:default}
+/* Недоступная кнопка не должна выглядеть «горящей». Полупрозрачность на
+   синем фоне оставляла её синей — непонятно, что действие недоступно.
+   Поэтому в неактивном состоянии у обеих кнопок один и тот же серый вид. */
+.btn:disabled{background:var(--panel3);color:var(--muted);cursor:default}
+.btn.ghost:disabled{background:transparent;border-color:var(--line);color:var(--muted)}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2)}
 .btn.ghost:hover{background:var(--panel3)}
 .btn.sm{padding:7px 13px;font-size:12.5px;font-weight:500}
@@ -137,6 +141,7 @@ body{
 .prog{height:5px;background:var(--panel3);border-radius:3px;overflow:hidden;margin-bottom:9px;display:none}
 .prog.on{display:block}
 .prog .bar{height:100%;width:0;background:var(--accent);border-radius:3px;transition:width .2s}
+.hint{font-size:12px;color:var(--muted);margin-right:14px}
 .status{font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:8px}
 .status.err{color:var(--bad)}
 .status.ok{color:var(--good)}
@@ -157,6 +162,15 @@ body{
 .dlg h3{margin:0 0 10px;font-size:15.5px}
 .dlg p{margin:0 0 18px;color:var(--ink2);font-size:13px;line-height:1.6;white-space:pre-wrap}
 .dlg .row{display:flex;gap:10px;justify-content:flex-end}
+/* Переключатель языка внутри диалога: на первом запуске пользователь ещё не
+   видел окно и не может нажать кнопку в шапке — она за модалкой. */
+.dlg-lang{display:flex;align-items:center;gap:8px;margin:-6px 0 18px;
+  font-size:12px;color:var(--muted)}
+.dlg-lang .lg{display:flex;gap:3px;padding:3px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:9px}
+.dlg-lang .lg button{background:transparent;border:0;color:var(--ink2);font:inherit;
+  font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer}
+.dlg-lang .lg button.on{background:var(--accent-soft);color:var(--accent2)}
 .spin{width:13px;height:13px;border:2px solid var(--line2);border-top-color:var(--accent);
   border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -245,9 +259,10 @@ body{
   <div class="foot">
     <div class="prog" id="prog"><div class="bar" id="bar"></div></div>
     <div class="foot-row">
-      <button class="btn" id="btn-backup" onclick="doBackup()">Create backup</button>
-      <button class="btn ghost" id="btn-restore" onclick="doRestore()">Restore</button>
+      <button class="btn" id="btn-backup" onclick="doBackup()" disabled>Create backup</button>
+      <button class="btn ghost" id="btn-restore" onclick="doRestore()" disabled>Restore</button>
       <span class="sp"></span>
+      <span class="hint" id="btn-hint"></span>
       <span class="status" id="status">Ready.</span>
     </div>
   </div>
@@ -256,12 +271,13 @@ body{
 <div class="modal" id="modal"><div class="dlg">
   <h3 id="m-title"></h3>
   <p id="m-body"></p>
+  <div id="m-extra"></div>
   <div class="row" id="m-row"></div>
 </div></div>
 
 <script>
 let LANG = 'en';
-let STATE = { browsers: [], backups: [], dir: '', busy: false };
+let STATE = { browsers: [], backups: [], dir: '', busy: false, firstRun: false };
 let PENDING_OP = null; // {kind, resolve} — ожидание итога backup/restore
 
 const STR = {
@@ -282,7 +298,7 @@ const STR = {
     ok:'Да', cancel:'Отмена', close:'Закрыть',
     cDrive:'Папка находится на диске C:. При переустановке Windows диск C: стирается, и бэкап будет потерян.\n\nРекомендуется хранить бэкап на другом диске (например, D:).\n\nВсё равно использовать эту папку?',
     cDriveTitle:'Бэкап на диске C:',
-    confirmR:'Будут восстановлены:\n\n%s\n\nТекущие профили НЕ удаляются — сначала делается страховочная копия.\n\nПродолжить?',
+    confirmR:'Будут восстановлены:\n\n%s\n\nПрофиль с тем же именем будет заменён целиком (прежняя версия сохранится в страховочной копии). Если такого профиля нет, будет создан новый — остальные профили не затрагиваются.\n\nПродолжить?',
     confirmRTitle:'Подтвердите восстановление',
     noSel:'Выберите хотя бы один профиль.', noSelTitle:'Ничего не выбрано',
     noSelR:'Выберите хотя бы один бэкап.',
@@ -294,7 +310,20 @@ const STR = {
     addFolderTitle:'Выберите папку профиля другого браузера',
     needRun:'Сначала запустите один раз и закройте: %s',
     bootSub:'Загружаю профили…',
-    restoreBroken:'Пропущены битые бэкапы (не восстановлены):'
+    restoreBroken:'Пропущены битые бэкапы (не восстановлены):',
+    // первый запуск
+    firstRunTitle:'Куда сохранять бэкапы?',
+    firstRunBody:'Выберите папку, в которой будут храниться бэкапы профилей.\n\nЛучше выбрать диск, отличный от C: — при переустановке Windows диск C: стирается вместе с бэкапами.\n\nПо умолчанию предложена: %s',
+    chooseBtn:'Выбрать папку…',
+    skipBtn:'Оставить по умолчанию',
+    // кнопки
+    hintSelProfile:'Отметьте профили, чтобы создать бэкап',
+    hintSelBackup:'Отметьте бэкапы, чтобы восстановить',
+    hintBoth:'Можно создать бэкап выбранных профилей или восстановить выбранные бэкапы',
+    // итоги восстановления
+    replaced:'заменён (старая версия — в страховочной копии)',
+    createdNew:'создан новый профиль',
+    restoreItemsTitle:'Что восстановлено:'
   },
   en: {
     title:'Browser Profile Backup',
@@ -313,7 +342,7 @@ const STR = {
     ok:'Yes', cancel:'Cancel', close:'Close',
     cDrive:'This folder is on drive C:. When you reinstall Windows, drive C: is erased and the backup will be lost.\n\nIt is strongly recommended to store the backup on another drive (for example D:).\n\nUse this folder anyway?',
     cDriveTitle:'Backup on drive C:',
-    confirmR:'The following will be restored:\n\n%s\n\nYour current profiles will NOT be deleted — a safety copy is made first.\n\nContinue?',
+    confirmR:'The following will be restored:\n\n%s\n\nA profile with the same name is replaced as a whole (its previous version is kept in the safety copy). If there is no such profile, a new one is created — your other profiles stay untouched.\n\nContinue?',
     confirmRTitle:'Confirm restore',
     noSel:'Please select at least one profile.', noSelTitle:'Nothing selected',
     noSelR:'Please select at least one backup.',
@@ -325,7 +354,20 @@ const STR = {
     addFolderTitle:'Choose a profile folder of another browser',
     needRun:'Launch once and close first: %s',
     bootSub:'Loading profiles…',
-    restoreBroken:'Skipped damaged backups (not restored):'
+    restoreBroken:'Skipped damaged backups (not restored):',
+    // first run
+    firstRunTitle:'Where should backups be stored?',
+    firstRunBody:'Choose the folder that will hold your profile backups.\n\nA drive other than C: is better — reinstalling Windows erases drive C: together with your backups.\n\nSuggested default: %s',
+    chooseBtn:'Choose folder…',
+    skipBtn:'Keep the default',
+    // buttons
+    hintSelProfile:'Tick the profiles to create a backup',
+    hintSelBackup:'Tick the backups to restore',
+    hintBoth:'Create a backup of the ticked profiles, or restore the ticked backups',
+    // restore results
+    replaced:'replaced (previous version is in the safety copy)',
+    createdNew:'new profile created',
+    restoreItemsTitle:'Restored:'
   }
 };
 function t(k){ return STR[LANG][k]; }
@@ -413,7 +455,15 @@ window.addEventListener('resize', ()=>{ syncDragArea(); syncMaxIcon(); });
   });
 })();
 
-function setLang(l){ if(l===LANG) return; LANG=l; if(window.setLanguage) window.setLanguage(l); applyLang(); }
+function setLang(l){
+  if(l===LANG) return;
+  LANG=l;
+  if(window.setLanguage) window.setLanguage(l);
+  applyLang();
+  // Открытый диалог (например, выбор папки на первом запуске) перерисовываем
+  // на новом языке — иначе он остался бы на прежнем.
+  if(document.getElementById('modal').classList.contains('on')) paintModal();
+}
 
 function render(){
   // браузеры
@@ -477,6 +527,25 @@ function render(){
     kc.innerHTML=h;
   }
   document.getElementById('dir-path').textContent=STATE.dir||'—';
+  updateButtons();
+}
+
+// updateButtons включает только те действия, для которых есть выбор.
+// Раньше «Создать бэкап» горела всегда, хотя ничего не отмечено, — легко
+// запутаться, какая кнопка к чему относится.
+function updateButtons(){
+  const np = document.querySelectorAll('#browsers .pf.sel').length;
+  const nb = document.querySelectorAll('#backups .bk.sel').length;
+  const busy = !!STATE.busy;
+  document.getElementById('btn-backup').disabled  = busy || np===0;
+  document.getElementById('btn-restore').disabled = busy || nb===0;
+  if(busy) return;
+  const hint = document.getElementById('btn-hint');
+  if(hint){
+    hint.textContent = nb>0 && np===0 ? t('hintSelBackup')
+                     : np>0 && nb===0 ? t('hintSelProfile')
+                     : t('hintBoth');
+  }
 }
 function toggleBrowser(i){ document.getElementById('br'+i).classList.toggle('open'); }
 
@@ -494,21 +563,54 @@ function selectedBackups(){
   });
   return out;
 }
-function toggleProf(el){ el.classList.toggle('sel'); }
-function toggleBackup(el){ el.classList.toggle('sel'); }
+function toggleProf(el){ el.classList.toggle('sel'); updateButtons(); }
+function toggleBackup(el){ el.classList.toggle('sel'); updateButtons(); }
 
 // ---- модалка ----
-function modal(title, body, buttons){
-  document.getElementById('m-title').textContent=title;
-  document.getElementById('m-body').innerHTML=body;
+// opts.langSwitcher — показать в диалоге выбор языка. Нужен только на первом
+// запуске: человек ещё не видел интерфейс, и кнопка RU/EN в шапке за модалкой
+// ему недоступна. Переключение сразу перерисовывает сам диалог.
+let MODAL_STATE = null; // {title, body, buttons, opts}
+// opts.build — функция, возвращающая {title, body, buttons}. Нужна там, где
+// текст зависит от языка и должен обновиться при его смене (первый запуск).
+function modal(title, body, buttons, opts){
+  MODAL_STATE = {title, body, buttons, opts: opts||{}};
+  paintModal();
+  document.getElementById('modal').classList.add('on');
+}
+
+function paintModal(){
+  let m = MODAL_STATE;
+  if(!m) return;
+  if(m.opts.build){
+    const b = m.opts.build();
+    m = {title:b.title, body:b.body, buttons:b.buttons, opts:m.opts};
+    MODAL_STATE = m;
+  }
+  document.getElementById('m-title').textContent=m.title;
+  document.getElementById('m-body').innerHTML=m.body;
+  const extra=document.getElementById('m-extra'); extra.innerHTML='';
+  if(m.opts.langSwitcher){
+    const d=document.createElement('div'); d.className='dlg-lang';
+    const lab=document.createElement('span');
+    lab.textContent = LANG==='ru' ? 'Язык:' : 'Language:';
+    const box=document.createElement('div'); box.className='lg';
+    [['en','English'],['ru','Русский']].forEach(([code,label])=>{
+      const b=document.createElement('button');
+      b.textContent=label;
+      b.className = LANG===code ? 'on' : '';
+      b.onclick=()=>{ if(LANG!==code) setLang(code); };
+      box.appendChild(b);
+    });
+    d.appendChild(lab); d.appendChild(box); extra.appendChild(d);
+  }
   const row=document.getElementById('m-row'); row.innerHTML='';
-  buttons.forEach(b=>{
+  m.buttons.forEach(b=>{
     const el=document.createElement('button');
     el.className='btn'+(b.ghost?' ghost':''); el.textContent=b.text;
     el.onclick=()=>{ closeModal(); if(b.act) b.act(); };
     row.appendChild(el);
   });
-  document.getElementById('modal').classList.add('on');
 }
 function closeModal(){ document.getElementById('modal').classList.remove('on'); }
 function info(title,body){ modal(title,esc(body).replace(/\n/g,'<br>'),[{text:t('close')}]); }
@@ -519,8 +621,7 @@ function confirmBox(title,body,onYes){
 // ---- действия ----
 function setBusy(on, text){
   STATE.busy=on;
-  document.getElementById('btn-backup').disabled=on;
-  document.getElementById('btn-restore').disabled=on;
+  updateButtons();
   document.getElementById('prog').classList.toggle('on',on);
   const st=document.getElementById('status');
   st.className='status'+(on?'':'');
@@ -552,9 +653,11 @@ async function load(){
     STATE.browsers = r.browsers||[];
     STATE.backups  = r.backups||[];
     STATE.dir      = r.dir||'';
+    STATE.firstRun = !!r.firstRun;
     if(r.lang && r.lang!==LANG){ LANG=r.lang; }
     applyLang();
     hideBoot();
+    if(STATE.firstRun) firstRunDialog();
   }catch(e){
     appendLog('LOAD ERROR: '+(e && e.message ? e.message : e));
     document.getElementById('status').className='status err';
@@ -599,6 +702,35 @@ async function changeDir(){
     const r = await runFolderDialog(t('chooseDirTitle'), STATE.dir);
     if(!r || !r.ok || !r.path) return;
     await applyDir(r.path);
+  }catch(e){ uiError(e); }
+}
+
+// firstRunDialog — при первом запуске спрашиваем, куда складывать бэкапы.
+// Путь по умолчанию (первый не-C: диск) подходит не всем, а менять папку
+// потом пользователь просто не догадается. Отказ — тоже нормальный ответ:
+// тогда остаёмся на предложенном пути и больше не спрашиваем.
+async function firstRunDialog(){
+  const chosen = await new Promise(resolve=>{
+    modal('', '', [], {
+      langSwitcher: true,
+      build: ()=>({
+        title: t('firstRunTitle'),
+        body: esc(t('firstRunBody').replace('%s', STATE.dir)).replace(/\n/g,'<br>'),
+        buttons: [
+          {text:t('skipBtn'), ghost:true, act:()=>resolve(null)},
+          {text:t('chooseBtn'), act:()=>resolve('pick')}
+        ]
+      })
+    });
+  });
+  try{
+    if(chosen === 'pick'){
+      const r = await runFolderDialog(t('chooseDirTitle'), STATE.dir);
+      if(r && r.ok && r.path){ await applyDir(r.path); return; }
+      // Диалог закрыли без выбора — остаёмся на пути по умолчанию.
+    }
+    await window.api.skipFirstRun();
+    STATE.firstRun = false;
   }catch(e){ uiError(e); }
 }
 // ВАЖНО: имена этих функций НЕ должны совпадать с именами RPC-функций,
@@ -696,7 +828,12 @@ async function doRestore(){
       document.getElementById('status').textContent=t('errTitle'); info(t('errTitle'),res.error); return; }
     document.getElementById('status').className='status ok';
     document.getElementById('status').textContent=t('doneR');
-    let msg=t('doneR')+'\n\n'+t('verifiedOk');
+    let msg=t('doneR');
+    if(res.items && res.items.length){
+      msg += '\n\n'+t('restoreItemsTitle')+'\n'+res.items.map(it=>
+        '• '+it.browser+' — '+it.name+': '+(it.replaced?t('replaced'):t('createdNew'))
+      ).join('\n');
+    }
     if(res.broken && res.broken.length){
       msg += '\n\n⚠ '+t('restoreBroken')+'\n• '+res.broken.join('\n• ');
     }
@@ -743,6 +880,7 @@ window.api = {
   ready:        wrap('ready'),
   addCustomDir:    wrap('addCustomDir'),
   removeCustomDir: wrap('removeCustomDir'),
+  skipFirstRun:    wrap('skipFirstRun'),
 };
 
 syncDragArea();

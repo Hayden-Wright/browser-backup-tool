@@ -4,6 +4,7 @@ package main
 
 import (
 	"os/exec"
+	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -448,6 +449,54 @@ func installCreateHook() func() {
 		}
 		hideUntilReady = false
 	}
+}
+
+// ---------- Иконка окна ----------
+
+var (
+	procCreateIconFromResourceEx = syscall.NewLazyDLL("user32.dll").NewProc("CreateIconFromResourceEx")
+	procSendMessageW             = syscall.NewLazyDLL("user32.dll").NewProc("SendMessageW")
+)
+
+const (
+	wmSetIcon   = 0x0080
+	iconSmall   = 0
+	iconBig     = 1
+	lrDefaultSz = 0x0000
+)
+
+// setWindowIcon ставит иконку приложения в заголовок окна, панель задач и
+// переключатель Alt+Tab.
+//
+// Почему не достаточно встроенной в .exe иконки (rsrc_*.syso). У окна без
+// заголовка (WS_CAPTION снят ради своей шапки) Windows не берёт иконку из
+// ресурсов автоматически: она подставляет стандартную заглушку, и в панели
+// задач виден пустой белый квадрат. Поэтому иконку создаём из PNG, который
+// уже встроен в бинарник (build/icon.png), и отправляем окну WM_SETICON.
+func setWindowIcon(hwnd uintptr, png []byte) {
+	icon := iconFromPNG(png)
+	if hwnd == 0 || icon == 0 {
+		return
+	}
+	procSendMessageW.Call(hwnd, wmSetIcon, iconBig, icon)
+	procSendMessageW.Call(hwnd, wmSetIcon, iconSmall, icon)
+}
+
+// iconFromPNG создаёт HICON из PNG-байтов через CreateIconFromResourceEx:
+// Windows с Windows Vista понимает PNG прямо в ресурсе иконки.
+func iconFromPNG(png []byte) uintptr {
+	if len(png) == 0 {
+		return 0
+	}
+	h, _, _ := procCreateIconFromResourceEx.Call(
+		uintptr(unsafe.Pointer(&png[0])),
+		uintptr(len(png)),
+		1,          // fIcon = TRUE
+		0x00030000, // версия ресурса иконки
+		uintptr(lrDefaultSz), uintptr(lrDefaultSz), uintptr(lrDefaultSz),
+	)
+	runtime.KeepAlive(png)
+	return h
 }
 
 // showWindow показывает окно (SW_SHOW).

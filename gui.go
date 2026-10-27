@@ -72,6 +72,7 @@ func runApp() {
 	app.w.Bind("pickFolder", app.jsPickFolder)
 	app.w.Bind("pollFolder", app.jsPollFolder)
 	app.w.Bind("setDir", app.jsSetDir)
+	app.w.Bind("skipFirstRun", app.jsSkipFirstRun)
 	app.w.Bind("openFolder", app.jsOpenFolder)
 	app.w.Bind("openLog", app.jsOpenLog)
 	app.w.Bind("checkRunning", app.jsCheckRunning)
@@ -85,14 +86,20 @@ func runApp() {
 	app.w.Bind("startDrag", app.jsStartDrag)
 	app.w.Bind("ready", app.jsReady)
 
-	// Журнал идёт и в файл, и в окно.
+	// Журнал идёт и в файл, и в окно. На первом запуске файл не создаём:
+	// папка ещё не выбрана, и программа не должна заводить её сама.
 	log.SetSink(app.logSink)
-	log.SetFile(app.settings.BackupDir)
-	log.Log("%s", Tf("log_ready", app.settings.BackupDir))
+	if !app.settings.needsFirstRun() {
+		log.SetFile(app.settings.BackupDir)
+		log.Log("%s", Tf("log_ready", app.settings.BackupDir))
+	}
 
 	// Стиль уже без заголовка (хук), но подкласс для перетаскивания ставим
 	// здесь: он нужен на всё время жизни окна.
 	makeFrameless(app.hwnd())
+	// Иконка: у окна без заголовка Windows не берёт её из ресурсов .exe,
+	// поэтому ставим вручную (панель задач, Alt+Tab, заголовок).
+	setWindowIcon(app.hwnd(), appIconPNG)
 
 	app.w.SetHtml(uiHTML)
 	app.w.Run()
@@ -212,6 +219,9 @@ func (a *App) buildState() string {
 		"backups":  backups,
 		"dir":      a.settings.BackupDir,
 		"lang":     langCode(currentLang),
+		// firstRun — папку для бэкапов пользователь ещё не выбирал: интерфейс
+		// откроет диалог выбора при старте (путь по умолчанию подходит не всем).
+		"firstRun": a.settings.needsFirstRun(),
 	}
 	data, _ := json.Marshal(out)
 	return string(data)
@@ -243,9 +253,19 @@ func (a *App) jsSetDir(dir string) (string, error) {
 		return "{}", nil
 	}
 	a.settings.BackupDir = dir
+	a.settings.BackupDirSet = true
+	a.settings.FirstRunDone = true
 	saveSettings(a.settings)
 	log.SetFile(dir)
 	log.Log("Backup folder: %s", dir)
+	return "{}", nil
+}
+
+// jsSkipFirstRun — пользователь отказался выбирать папку при первом запуске:
+// остаёмся на пути по умолчанию и больше не спрашиваем.
+func (a *App) jsSkipFirstRun() (string, error) {
+	a.settings.FirstRunDone = true
+	saveSettings(a.settings)
 	return "{}", nil
 }
 
@@ -473,6 +493,7 @@ func (a *App) jsRestore(folders []string) (string, error) {
 			out["safety"] = res.SafetyDir
 			out["notRun"] = res.NotRun
 			out["broken"] = res.Broken
+			out["items"] = res.Items
 		}
 		a.dispatchOpDone(out)
 	}()

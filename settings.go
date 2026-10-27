@@ -16,6 +16,14 @@ type Settings struct {
 	// CustomProfileDirs — папки профилей, добавленные вручную
 	// (режим «Другой браузер»). Каждая запись — произвольная папка на диске.
 	CustomProfileDirs []string `json:"custom_profile_dirs,omitempty"`
+	// BackupDirSet — папка бэкапа уже выбрана пользователем (или programmatically
+	// в старой версии). Пока false, при запуске открывается диалог выбора:
+	// путь по умолчанию (D:\BrowserBackup и т.п.) подходит не всем.
+	BackupDirSet bool `json:"backup_dir_set,omitempty"`
+	// FirstRunDone — первичная настройка (выбор папки бэкапа) пройдена.
+	// Нужна отдельно от BackupDirSet: при первом запуске путь по умолчанию
+	// вычисляется и без выбора пользователя, и его нельзя считать «выбором».
+	FirstRunDone bool `json:"first_run_done,omitempty"`
 }
 
 // settingsPath — файл настроек рядом с .exe (portable-режим).
@@ -23,6 +31,9 @@ func settingsPath() string {
 	return filepath.Join(exeDir(), "BrowserBackup-settings.json")
 }
 
+// loadSettings читает настройки. Если файла нет — возвращает настройки с
+// папкой бэкапа по умолчанию, но с FirstRunDone=false: тогда интерфейс
+// попросит пользователя выбрать папку самому.
 func loadSettings() Settings {
 	st := Settings{Language: defaultLang}
 	if data, err := os.ReadFile(settingsPath()); err == nil {
@@ -39,8 +50,20 @@ func loadSettings() Settings {
 	return st
 }
 
-// defaultBackupDir выбирает папку для бэкапа по умолчанию:
-// первый существующий диск, кроме C: (D:, E:, …), иначе папка пользователя.
+// needsFirstRun сообщает, что пользователю при запуске нужно выбрать папку
+// для бэкапов. Старый формат настроек (без флага) с уже записанным путём
+// считается настроенным — выбор папки в интерфейсе его туда и записывал;
+// просить выбрать заново ради этого не стоит.
+func (st Settings) needsFirstRun() bool {
+	if st.FirstRunDone {
+		return false
+	}
+	return !(st.BackupDirSet && st.BackupDir != "")
+}
+
+// defaultBackupDir выбирает папку для бэкапа по умолчанию (только как место,
+// которое откроется в диалоге выбора): первый существующий диск, кроме C:
+// (D:, E:, …), иначе папка пользователя.
 func defaultBackupDir() string {
 	for _, letter := range []string{"D", "E", "F", "G"} {
 		root := letter + ":\\"

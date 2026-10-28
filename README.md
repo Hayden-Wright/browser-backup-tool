@@ -31,10 +31,8 @@ paid code-signing certificate) — click **"More info" → "Run anyway"**.
   plus an "Other browser" mode for anything else.
 - ✅ **Integrity checking** — SHA-256 is computed on the fly while copying, so a damaged
   backup shows up immediately instead of being silently broken.
-- 🛟 **Safe restore** — a profile is **replaced as a whole**, never merged with the one
-  you have. Its previous version goes into a safety copy (`_safety`), so you can roll back.
-- 📁 **Folder of your choice** — on the first run the app asks where to keep backups
-  instead of silently picking a path for you.
+- 🛟 **Safe restore** — your current profile is not deleted: a safety copy (`_safety`)
+  is made first, so you can roll back at any time.
 - ⚡ **Responsive UI** — long operations run in the background, the window never freezes.
 - 🌐 **English / Русский** — English is the default; Russian is a full second language,
   switched in the window.
@@ -72,38 +70,24 @@ The app warns about this right in the window, next to each such browser.
    - "active" — the profile you are using right now;
    - "empty" — a service folder with no data (nothing to back up). Zen may keep an empty
      "Default Profile" placeholder next to your working profile — that is **not** a duplicate.
-3. On the **first run** the app asks where to keep backups — pick a folder, or keep the
-   suggested one. The language can be switched right in that dialog.
-   The folder can be changed later with "Change…" in the "Backup folder" card.
+3. Set the "Backup folder" with the "Change…" button.
    > ⚠️ Do not keep the backup on drive `C:` — it will be wiped when Windows is reinstalled.
    > The app warns you about this.
 4. Click "Create backup". **The browser must be closed** — otherwise some files cannot be
    copied and the app will not let you continue.
-   > "Create backup" and "Restore" stay disabled until something is ticked, so it is always
-   > clear which action the current selection belongs to.
 
 **Restore**
 1. Install the browser(s), run each one **once** and close it — so the browser creates a
    fresh profile folder itself.
 2. Run `BrowserBackup.exe`, point it at the same backup folder.
 3. In "Restore from backup", tick what you need and click "Restore".
-   - A profile **with the same name** is replaced as a whole; its previous version is kept
-     in `_safety`. Nothing from your old profile is mixed into the restored one.
-   - If there is no profile with that name, a **new** one is created and registered in the
-     browser — your other profiles are left untouched.
-   - The result dialog shows exactly what was replaced and what was created.
 
 ---
 
 ## How it works
 
-- A profile is matched by **name** first, then by path. If neither matches, a new profile is
-  created — the app never falls back to "the default profile", which used to put one
-  profile's data into another.
-- The target profile is **cleared before copying**, so afterwards it holds exactly what the
-  backup holds. The previous contents are saved to `_safety` beforehand.
-- `Local State` (Chromium) is **not** restored: it is shared by all profiles of the browser,
-  and copying it from a backup overwrote the list of profiles on the current machine.
+- The profile is transferred into the folder created by the **new** browser, not into a
+  folder with the old random id — that is what makes it work correctly.
 - **The cache is not copied** — it is not needed to carry data over and takes a lot of space.
 - **Site file storage is not copied either** (`storage/<site>/fs`). Sites keep arbitrary
   blobs there — offline copies, game assets, downloaded resources — and it adds up fast:
@@ -113,8 +97,8 @@ The app warns about this right in the window, next to each such browser.
   (`zen_Default (release)_2026-10-09_18-41-12`). A new backup **never** overwrites an old one.
 - Inside a backup — `manifest.json` and `README.txt` (in Russian: `ПРОЧТИ_МЕНЯ.txt`): browser
   and version, profile, date, Windows, computer, user, file count, size, checksums.
-- Every action is written to `browser-backup.log` in the backup folder. The "Open log file"
-  button opens the log itself, "Open folder" opens the folder in Explorer.
+- Every action is shown in the in-window **Log** card. "Open folder" opens the backup folder
+  in Explorer.
 - Human-readable error messages instead of codes.
 
 ---
@@ -127,7 +111,7 @@ The app **leaves no traces** in the system:
 |---|---|
 | Settings (backup folder, language, "Other browser") | `BrowserBackup-settings.json` **next to the `.exe`** |
 | WebView2 temporary data (tens of MB) | in the Windows temp folder, **deleted on exit** |
-| Log | `browser-backup.log` in the backup folder |
+| Log | only in the window; a temporary file in the Windows temp folder, **deleted on exit** |
 | Registry / `%APPDATA%` | **not used** |
 
 You can move the folder with the `.exe` to a USB stick — the settings travel with it.

@@ -50,7 +50,6 @@ func doBackup(profiles []Profile, backupDir string, cancel *atomic.Bool,
 
 	res := &BackupResult{Dir: backupDir}
 	os.MkdirAll(backupDir, 0755)
-	log.SetFile(backupDir)
 
 	stamp := timestamp()
 

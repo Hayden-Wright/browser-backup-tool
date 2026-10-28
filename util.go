@@ -152,9 +152,9 @@ func pathExists(p string) bool {
 //
 // ВАЖНО: explorer НЕ передаём в hideConsole. Он GUI-приложение и консоли не
 // создаёт, а hideConsole выставляет STARTUPINFO.wShowWindow = SW_HIDE — из-за
-// этого explorer создавал окно СКРЫТЫМ, и кнопки «Открыть папку» / «Открыть
-// файл лога» выглядели как «ничего не происходит». Для консольных утилит
-// (tasklist, cmd, powershell) hideConsole по-прежнему нужен.
+// этого explorer создавал окно СКРЫТЫМ, и кнопка «Открыть папку» выглядела как
+// «ничего не происходит». Для консольных утилит (tasklist, cmd, powershell)
+// hideConsole по-прежнему нужен.
 func openInExplorer(path string) {
 	info, err := os.Stat(path)
 	if err == nil && info.IsDir() {

@@ -5,7 +5,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"sync/atomic"
 )
@@ -19,12 +18,9 @@ func runCLI(args []string) int {
 	browsers := fs.String("browsers", "", "список браузеров через запятую")
 	_ = fs.Parse(args)
 
-	// Лог в stdout для CLI.
+	// Лог в stdout для CLI. Файл в папке бэкапа не заводим: программа не
+	// должна оставлять в ней ничего, кроме самих бэкапов.
 	log.SetSink(func(line string) { fmt.Println(line) })
-	if *dir != "" {
-		os.MkdirAll(*dir, 0755)
-		log.SetFile(*dir)
-	}
 
 	keys := map[string]bool{}
 	if *browsers != "" {

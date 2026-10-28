@@ -12,7 +12,6 @@ import (
 // а старые файлы уходят в страховочную копию.
 func TestRestoreReplacesProfileInsteadOfMerging(t *testing.T) {
 	backupDir := t.TempDir()
-	t.Cleanup(func() { log.SetFile("") })
 
 	// --- «Другой браузер»: путь задан абсолютно, чтобы не зависеть от
 	// установленных браузеров на машине с тестами.

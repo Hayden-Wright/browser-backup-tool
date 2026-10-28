@@ -17,8 +17,8 @@ type RestoreResult struct {
 	SafetyDir   string
 	NotRun      []string // браузеры, которые нужно запустить один раз
 	NotInBackup []string
-	Broken      []string      // бэкапы, не прошедшие проверку целостности
-	Items       []RestoreItem // что именно легло и куда
+	Broken      []string        // бэкапы, не прошедшие проверку целостности
+	Items       []RestoreItem   // что именно легло и куда
 }
 
 // RestoreItem — один восстановленный профиль.
@@ -41,7 +41,6 @@ func doRestore(backups []manifest, backupDir string, cancel *atomic.Bool,
 	progress func(done, total int64, name string)) (*RestoreResult, error) {
 
 	res := &RestoreResult{}
-	log.SetFile(backupDir)
 
 	stamp := timestamp()
 	safetyBase := filepath.Join(backupDir, "_safety", stamp)
@@ -130,10 +129,7 @@ func doRestore(backups []manifest, backupDir string, cancel *atomic.Bool,
 		// 2) Определяем, куда ляжет каждый источник, и ОЧИЩАЕМ приёмник.
 		//    Именно очистка отличает восстановление от «наложения»: после неё
 		//    в профиле остаётся ровно то, что было в бэкапе.
-		type job struct {
-			src, dst string
-			isFile   bool
-		}
+		type job struct{ src, dst string; isFile bool }
 		var jobs []job
 		for _, srcItem := range sourceItems(srcRoot) {
 			dst, ok := mapSourceToTarget(def, target.profile, srcItem.Label)

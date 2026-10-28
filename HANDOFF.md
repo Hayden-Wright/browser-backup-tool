@@ -30,7 +30,8 @@ GOOS=windows GOARCH=amd64 GOFLAGS=-mod=mod go build -ldflags "-s -w -H windowsgu
 `/путь/к/Downloads/#Test/` (exe + README.txt).
 
 Портативность (см. 2а): настройки — `BrowserBackup-settings.json` РЯДОМ С .EXE;
-журнал — `<backup_dir>\browser-backup.log`; данные WebView2 — во временной папке
+журнал — только в окне (файл лога — во временной папке
+`%TEMP%\BrowserBackup-log-*`, удаляется при выходе); данные WebView2 — во временной папке
 (`%TEMP%\BrowserBackup-webview-*`), удаляются при выходе. В `%APPDATA%` и реестр
 программа НЕ пишет.
 

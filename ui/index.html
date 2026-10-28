@@ -117,6 +117,11 @@ body{
 .bk .bad{color:var(--bad);font-size:11px}
 .empty-note{color:var(--muted);font-size:12.5px;padding:10px 16px 14px}
 
+/* подвал карточки: действия, относящиеся именно к этому блоку */
+.card-f{display:flex;align-items:center;gap:10px;padding:11px 16px;
+  border-top:1px solid var(--line);background:var(--panel2)}
+.card-f .sp{margin-left:auto}
+
 /* папка */
 .dir{display:flex;align-items:center;gap:10px;padding:12px 16px}
 .dir .path{flex:1;font-size:12.5px;color:var(--ink2);word-break:break-all;
@@ -230,14 +235,20 @@ body{
       <div class="card-h"><span class="ic">◧</span><span id="t-browsers">Browsers and profiles</span>
         <span class="sp" id="browsers-sp"></span></div>
       <div id="browsers"></div>
-      <div style="padding:10px 16px 14px;border-top:1px solid var(--line)">
+      <div class="card-f">
         <button class="btn ghost sm" onclick="addCustom()" id="t-addfolder">Add folder…</button>
+        <span class="sp"></span>
+        <button class="btn" id="btn-backup" onclick="doBackup()" disabled>Create backup</button>
       </div>
     </div>
 
     <div class="card">
       <div class="card-h"><span class="ic">↺</span><span id="t-restore">Restore from backup</span></div>
       <div id="backups"></div>
+      <div class="card-f">
+        <span class="sp"></span>
+        <button class="btn" id="btn-restore" onclick="doRestore()" disabled>Restore</button>
+      </div>
     </div>
 
     <div class="card">
@@ -250,8 +261,7 @@ body{
     </div>
 
     <div class="card">
-      <div class="card-h"><span class="ic">▤</span><span id="t-log">Log</span>
-        <span class="sp"><button class="btn ghost sm" onclick="openLogFile()" id="t-openlog">Open log file</button></span></div>
+      <div class="card-h"><span class="ic">▤</span><span id="t-log">Log</span></div>
       <pre class="log" id="log"></pre>
     </div>
   </div>
@@ -259,10 +269,8 @@ body{
   <div class="foot">
     <div class="prog" id="prog"><div class="bar" id="bar"></div></div>
     <div class="foot-row">
-      <button class="btn" id="btn-backup" onclick="doBackup()" disabled>Create backup</button>
-      <button class="btn ghost" id="btn-restore" onclick="doRestore()" disabled>Restore</button>
-      <span class="sp"></span>
       <span class="hint" id="btn-hint"></span>
+      <span class="sp"></span>
       <span class="status" id="status">Ready.</span>
     </div>
   </div>
@@ -285,10 +293,11 @@ const STR = {
     title:'Бэкап профилей браузеров',
     sub:'Сохраняет и восстанавливает профили — локально, без следов в системе.',
     browsers:'Браузеры и профили', restore:'Восстановить из бэкапа', dir:'Папка для бэкапа',
-    log:'Журнал', change:'Изменить…', open:'Открыть папку', openlog:'Открыть файл лога',
+    log:'Журнал', change:'Изменить…', open:'Открыть папку',
     backup:'Создать бэкап', restoreBtn:'Восстановить', ready:'Готово.',
     pw:'Для <b>Chromium-семейства</b> (Chrome, Edge, Brave, Vivaldi и др.) файлами переносятся закладки, история, расширения и настройки. Входы и пароли — только через вход в аккаунт (синхронизацию). Для <b>Firefox-семейства</b> (Zen, Firefox, LibreWolf и др.) пароли переносятся файлами.',
     noprof:'Профилей не найдено.', nobrowsers:'Поддерживаемые браузеры не найдены.',
+    addfolder:'Добавить папку…',
     nobackups:'В выбранной папке пока нет бэкапов.',
     active:'активный', empty:'пустой', def:'основной',
     profilesWord:['профиль','профиля','профилей'],
@@ -319,7 +328,7 @@ const STR = {
     // кнопки
     hintSelProfile:'Отметьте профили, чтобы создать бэкап',
     hintSelBackup:'Отметьте бэкапы, чтобы восстановить',
-    hintBoth:'Можно создать бэкап выбранных профилей или восстановить выбранные бэкапы',
+    hintBoth:'Профили — для бэкапа, бэкапы — для восстановления',
     // итоги восстановления
     replaced:'заменён (старая версия — в страховочной копии)',
     createdNew:'создан новый профиль',
@@ -329,10 +338,11 @@ const STR = {
     title:'Browser Profile Backup',
     sub:'Saves and restores profiles — locally, with no traces left in the system.',
     browsers:'Browsers and profiles', restore:'Restore from backup', dir:'Backup folder',
-    log:'Log', change:'Change…', open:'Open folder', openlog:'Open log file',
+    log:'Log', change:'Change…', open:'Open folder',
     backup:'Create backup', restoreBtn:'Restore', ready:'Ready.',
     pw:'For the <b>Chromium family</b> (Chrome, Edge, Brave, Vivaldi, …), files carry bookmarks, history, extensions and settings. Sign-ins and passwords transfer only via account sign-in (sync). For the <b>Firefox family</b> (Zen, Firefox, LibreWolf, …), passwords are transferred with the files.',
     noprof:'No profiles found.', nobrowsers:'No supported browsers found.',
+    addfolder:'Add folder…',
     nobackups:'No backups in the selected folder yet.',
     active:'active', empty:'empty', def:'default',
     profilesWord:['profile','profiles','profiles'],
@@ -363,7 +373,7 @@ const STR = {
     // buttons
     hintSelProfile:'Tick the profiles to create a backup',
     hintSelBackup:'Tick the backups to restore',
-    hintBoth:'Create a backup of the ticked profiles, or restore the ticked backups',
+    hintBoth:'Profiles are for backup, backups are for restore',
     // restore results
     replaced:'replaced (previous version is in the safety copy)',
     createdNew:'new profile created',
@@ -391,7 +401,7 @@ function applyLang(){
   document.getElementById('t-log').textContent=t('log');
   document.getElementById('t-change').textContent=t('change');
   document.getElementById('t-open').textContent=t('open');
-  document.getElementById('t-openlog').textContent=t('openlog');
+  document.getElementById('t-addfolder').textContent=t('addfolder');
   document.getElementById('btn-backup').textContent=t('backup');
   document.getElementById('btn-restore').textContent=t('restoreBtn');
   document.getElementById('pw-note-text').innerHTML=t('pw');
@@ -530,9 +540,10 @@ function render(){
   updateButtons();
 }
 
-// updateButtons включает только те действия, для которых есть выбор.
-// Раньше «Создать бэкап» горела всегда, хотя ничего не отмечено, — легко
-// запутаться, какая кнопка к чему относится.
+// updateButtons включает только то действие, для которого есть выбор в его
+// собственном блоке: «Создать бэкап» — по отмеченным профилям, «Восстановить»
+// — по отмеченным бэкапам. Отметка в одном блоке больше не «зажигает» кнопку
+// другого: каждая кнопка стоит под своим списком и сера, пока в нём пусто.
 function updateButtons(){
   const np = document.querySelectorAll('#browsers .pf.sel').length;
   const nb = document.querySelectorAll('#backups .bk.sel').length;
@@ -542,8 +553,9 @@ function updateButtons(){
   if(busy) return;
   const hint = document.getElementById('btn-hint');
   if(hint){
-    hint.textContent = nb>0 && np===0 ? t('hintSelBackup')
+    hint.textContent = np===0 && nb===0 ? t('hintBoth')
                      : np>0 && nb===0 ? t('hintSelProfile')
+                     : nb>0 && np===0 ? t('hintSelBackup')
                      : t('hintBoth');
   }
 }
@@ -734,10 +746,9 @@ async function firstRunDialog(){
   }catch(e){ uiError(e); }
 }
 // ВАЖНО: имена этих функций НЕ должны совпадать с именами RPC-функций,
-// которые регистрирует Go (openFolder/openLog и т.п.) — иначе вызов уходит
+// которые регистрирует Go (openFolder и т.п.) — иначе вызов уходит
 // сам в себя и падает с «Maximum call stack size exceeded».
 async function openBackupFolder(){ try{ await window.api.openFolder(); }catch(e){ uiError(e); } }
-async function openLogFile(){ try{ await window.api.openLog(); }catch(e){ uiError(e); } }
 
 // ---- «Другой браузер»: папки вручную ----
 async function addCustom(){
@@ -869,7 +880,6 @@ window.api = {
   pollFolder:   wrap('pollFolder'),
   setDir:       wrap('setDir'),
   openFolder:   wrap('openFolder'),
-  openLog:      wrap('openLog'),
   checkRunning: wrap('checkRunning'),
   backup:       wrap('backup'),
   restore:      wrap('restore'),

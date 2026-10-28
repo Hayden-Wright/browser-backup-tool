@@ -48,6 +48,12 @@ func runApp() {
 	}
 	defer removeWebViewData(dataPath)
 
+	// Журнал при работе из окна: строки идут в окно, а файл — во временной
+	// папке (он нужен только на случай разбора, следов в системе не остаётся:
+	// каталог удаляется при выходе).
+	log.OpenTemp()
+	defer log.Close()
+
 	// Окно должно появиться уже без системной шапки и с готовым содержимым:
 	// хук правит стиль в момент создания, а показываем окно мы сами (см. uiReady).
 	unhook := installCreateHook()
@@ -74,7 +80,6 @@ func runApp() {
 	app.w.Bind("setDir", app.jsSetDir)
 	app.w.Bind("skipFirstRun", app.jsSkipFirstRun)
 	app.w.Bind("openFolder", app.jsOpenFolder)
-	app.w.Bind("openLog", app.jsOpenLog)
 	app.w.Bind("checkRunning", app.jsCheckRunning)
 	app.w.Bind("backup", app.jsBackup)
 	app.w.Bind("restore", app.jsRestore)
@@ -86,13 +91,11 @@ func runApp() {
 	app.w.Bind("startDrag", app.jsStartDrag)
 	app.w.Bind("ready", app.jsReady)
 
-	// Журнал идёт и в файл, и в окно. На первом запуске файл не создаём:
-	// папка ещё не выбрана, и программа не должна заводить её сама.
+	// Журнал виден в окне. Файла в папке бэкапа нет: временный файл журнала
+	// открывается во временной папке и удаляется при выходе (defer log.Close
+	// стоит выше — сработает последним, после Destroy окна).
 	log.SetSink(app.logSink)
-	if !app.settings.needsFirstRun() {
-		log.SetFile(app.settings.BackupDir)
-		log.Log("%s", Tf("log_ready", app.settings.BackupDir))
-	}
+	log.Log("%s", Tf("log_ready", app.settings.BackupDir))
 
 	// Стиль уже без заголовка (хук), но подкласс для перетаскивания ставим
 	// здесь: он нужен на всё время жизни окна.
@@ -256,7 +259,6 @@ func (a *App) jsSetDir(dir string) (string, error) {
 	a.settings.BackupDirSet = true
 	a.settings.FirstRunDone = true
 	saveSettings(a.settings)
-	log.SetFile(dir)
 	log.Log("Backup folder: %s", dir)
 	return "{}", nil
 }
@@ -275,14 +277,6 @@ func (a *App) jsOpenFolder() (string, error) {
 		return "{}", nil
 	}
 	go openPath(dir) // запуск проводника вне потока окна
-	return "{}", nil
-}
-
-func (a *App) jsOpenLog() (string, error) {
-	p := log.Path()
-	if p != "" && pathExists(p) {
-		go openPath(p)
-	}
 	return "{}", nil
 }
 

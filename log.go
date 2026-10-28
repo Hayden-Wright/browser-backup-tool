@@ -10,12 +10,17 @@ import (
 )
 
 // Logger пишет журнал в файл и (опционально) отдаёт строки в интерфейс.
+//
+// Файл журнала — ВРЕМЕННЫЙ. Программа не оставляет следов рядом с бэкапами:
+// журнал создаётся во временной папке при старте (OpenTemp) и удаляется при
+// выходе (Close). Пользователю журнал виден в окне программы; по умолчанию
+// файл вообще не ведётся — так ведут себя тесты и скрытый CLI-режим.
 type Logger struct {
 	mu      sync.Mutex
 	file    *os.File
 	path    string
+	tempDir string // каталог, который удаляем при закрытии
 	onLine  func(string)
-	enabled bool
 }
 
 var log = &Logger{}
@@ -27,33 +32,49 @@ func (l *Logger) SetSink(fn func(string)) {
 	l.onLine = fn
 }
 
-// SetFile переключает файл журнала (например, при смене папки бэкапа).
-func (l *Logger) SetFile(dir string) {
+// OpenTemp открывает журнал во временной папке Windows: создаёт каталог
+// «BrowserBackup-log-*» и файл browser-backup.log внутри. Каталог удаляется
+// при выходе через Close. Если открыть файл не удалось — журнал продолжит
+// работать только в окне.
+func (l *Logger) OpenTemp() {
+	dir, err := os.MkdirTemp("", "BrowserBackup-log-")
+	if err != nil {
+		return
+	}
+	f, err := os.OpenFile(filepath.Join(dir, "browser-backup.log"),
+		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		os.RemoveAll(dir)
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.file != nil {
 		l.file.Close()
-		l.file = nil
-	}
-	if dir == "" {
-		return
-	}
-	os.MkdirAll(dir, 0755)
-	p := filepath.Join(dir, "browser-backup.log")
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return
 	}
 	l.file = f
-	l.path = p
-	l.enabled = true
+	l.path = f.Name()
+	l.tempDir = dir
 }
 
-// Path возвращает путь к текущему файлу журнала.
-func (l *Logger) Path() string {
+// Close закрывает файл журнала и удаляет временный каталог. Файл закрываем
+// ДО удаления: на Windows открытый файл удалить нельзя.
+func (l *Logger) Close() {
 	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.path
+	if l.file == nil {
+		l.mu.Unlock()
+		return
+	}
+	l.file.Close()
+	dir := l.tempDir
+	l.file = nil
+	l.path = ""
+	l.tempDir = ""
+	l.mu.Unlock()
+
+	if dir != "" {
+		os.RemoveAll(dir)
+	}
 }
 
 // Log записывает строку в журнал.
